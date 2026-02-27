@@ -1,0 +1,14 @@
+{
+  "name": "@clarissa/core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared core: pixel conversion and palette system",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

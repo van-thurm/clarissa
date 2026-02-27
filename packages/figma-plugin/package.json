@@ -1,0 +1,9 @@
+{
+  "name": "@clarissa/figma-plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Clarissa Figma plugin — select a frame, get terminal-ready pixel art",
+  "scripts": {
+    "build": "tsc"
+  }
+}

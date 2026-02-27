@@ -1,0 +1,10 @@
+{
+  "name": "clarissa",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

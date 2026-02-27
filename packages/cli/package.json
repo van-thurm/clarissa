@@ -1,0 +1,28 @@
+{
+  "name": "hey-clarissa",
+  "version": "0.0.1",
+  "description": "Clarissa — make your terminal feel like yours",
+  "bin": {
+    "clarissa": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@clarissa/core": "*"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "clarissa",
+    "terminal",
+    "pixel-art",
+    "ascii",
+    "cli"
+  ],
+  "license": "MIT"
+}
