@@ -8,7 +8,8 @@ const STATE_FILE = path.join(CLARISSA_DIR, 'state.json')
 
 interface State {
   palette: PaletteKey
-  icon?: string  // name of most-recently-added icon
+  icon?: string   // name of most-recently-added icon
+  dir?: string    // default image directory for clarissa add
 }
 
 async function readState(): Promise<State> {
@@ -19,7 +20,7 @@ async function readState(): Promise<State> {
     const palette = parsed.palette && PALETTE_KEYS.includes(parsed.palette)
       ? parsed.palette
       : DEFAULT_PALETTE
-    return { palette }
+    return { palette, icon: parsed.icon, dir: parsed.dir }
   } catch {
     return { palette: DEFAULT_PALETTE }
   }
@@ -48,4 +49,14 @@ export async function getActiveIcon(): Promise<string | undefined> {
 export async function setActiveIcon(name: string): Promise<void> {
   const state = await readState()
   await writeState({ ...state, icon: name })
+}
+
+export async function getActiveDir(): Promise<string | undefined> {
+  const state = await readState()
+  return state.dir
+}
+
+export async function setActiveDir(dir: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, dir })
 }

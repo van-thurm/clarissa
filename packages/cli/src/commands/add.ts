@@ -3,18 +3,22 @@ import sharp from 'sharp'
 import { pixelsToRows, renderIcon } from '@clarissa/core'
 import type { Icon } from '@clarissa/core'
 import { saveIcon } from '../store.js'
-import { setActiveIcon } from '../state.js'
+import { setActiveIcon, getActiveDir } from '../state.js'
 
 const DEFAULT_SIZE = 32
 
 export async function add(filePath: string, options: { size?: number; name?: string } = {}): Promise<void> {
   const size = options.size ?? DEFAULT_SIZE
-  const sourceName = path.basename(filePath)
-  const iconName = options.name ?? deriveIconName(filePath)
+
+  // If filePath is just a filename (no directory component), resolve against active dir
+  const resolved = await resolveFilePath(filePath)
+
+  const sourceName = path.basename(resolved)
+  const iconName = options.name ?? deriveIconName(resolved)
 
   // Load, resize (NEAREST — pixel-perfect, matches pixel_to_cli.py),
   // and composite transparency onto white — same as Python's load_image().
-  const { data } = await sharp(filePath)
+  const { data } = await sharp(resolved)
     .resize(size, size, { kernel: sharp.kernel.nearest, fit: 'fill' })
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .raw()
@@ -44,4 +48,18 @@ function deriveIconName(filePath: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+async function resolveFilePath(filePath: string): Promise<string> {
+  // Already absolute or relative — use as-is
+  if (path.isAbsolute(filePath) || filePath.startsWith('.')) {
+    return filePath
+  }
+  // Plain filename — try active dir first
+  const activeDir = await getActiveDir()
+  if (activeDir) {
+    return path.join(activeDir, filePath)
+  }
+  // Fall back to cwd
+  return path.resolve(filePath)
 }

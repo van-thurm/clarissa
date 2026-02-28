@@ -1,6 +1,6 @@
 import { renderIcon, PALETTES } from '@clarissa/core'
 import { listIcons, loadIcon } from '../store.js'
-import { getActivePalette, getActiveIcon } from '../state.js'
+import { getActivePalette, getActiveIcon, getActiveDir } from '../state.js'
 
 const RESET = '\x1b[0m'
 const DIM = '\x1b[2m'
@@ -18,13 +18,15 @@ const COMMANDS = [
   { cmd: 'clarissa preview <name>',          desc: 'print icon to terminal'               },
   { cmd: 'clarissa list',                    desc: 'show all saved icons'                 },
   { cmd: 'clarissa palette [name]',          desc: 'switch color palette'                 },
+  { cmd: 'clarissa dir [path]',              desc: 'set default image directory'          },
 ]
 
 export async function welcome(): Promise<void> {
-  const [icons, activePalette, activeIconName] = await Promise.all([
+  const [icons, activePalette, activeIconName, activeDir] = await Promise.all([
     listIcons(),
     getActivePalette(),
     getActiveIcon(),
+    getActiveDir(),
   ])
 
   const palette = PALETTES[activePalette]
@@ -45,12 +47,15 @@ export async function welcome(): Promise<void> {
     console.log()
   }
 
-  // Palette indicator
+  // Palette indicator + active dir
   const swatch = palette.color !== null
     ? color(palette.color, '██')
     : '██'
   console.log()
   console.log(`  ${swatch}  ${dim(palette.name)}`)
+  if (activeDir) {
+    console.log(`  ${dim('📁')}  ${dim(activeDir)}`)
+  }
   console.log()
 
   // Command list

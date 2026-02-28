@@ -8,6 +8,7 @@ import { list } from './commands/list.js'
 import { palette } from './commands/palette.js'
 import { welcome } from './commands/welcome.js'
 import { fonts } from './commands/fonts.js'
+import { dir } from './commands/dir.js'
 
 const program = new Command()
 
@@ -65,6 +66,16 @@ program
   .option('-t, --text <text>', 'custom sample text')
   .action(async (name?: string, opts: { text?: string } = {}) => {
     await fonts(name, opts.text).catch(err => {
+      console.error(`\n  error: ${err.message}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('dir [path]')
+  .description('set default image directory for add')
+  .action(async (dirPath?: string) => {
+    await dir(dirPath).catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })
