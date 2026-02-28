@@ -1,6 +1,6 @@
 {
   "name": "hey-clarissa",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Clarissa — make your terminal feel like yours",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
