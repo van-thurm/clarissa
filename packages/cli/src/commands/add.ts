@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { pixelsToRows, renderIcon } from '@clarissa/core'
 import type { Icon } from '@clarissa/core'
 import { saveIcon } from '../store.js'
+import { setActiveIcon } from '../state.js'
 
 const DEFAULT_SIZE = 32
 
@@ -30,6 +31,7 @@ export async function add(filePath: string, options: { size?: number; name?: str
   }
 
   await saveIcon(icon)
+  await setActiveIcon(iconName)
 
   console.log(`\n  saved  ${iconName}`)
   console.log(`  source ${sourceName}\n`)

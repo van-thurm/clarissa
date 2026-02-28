@@ -6,6 +6,7 @@ import { add } from './commands/add.js'
 import { preview } from './commands/preview.js'
 import { list } from './commands/list.js'
 import { palette } from './commands/palette.js'
+import { welcome } from './commands/welcome.js'
 
 const program = new Command()
 
@@ -56,5 +57,13 @@ program
       process.exit(1)
     })
   })
+
+// Show welcome screen when no subcommand is given
+program.action(async () => {
+  await welcome().catch(err => {
+    console.error(`\n  error: ${err.message}\n`)
+    process.exit(1)
+  })
+})
 
 program.parse()

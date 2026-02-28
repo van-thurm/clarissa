@@ -8,6 +8,7 @@ const STATE_FILE = path.join(CLARISSA_DIR, 'state.json')
 
 interface State {
   palette: PaletteKey
+  icon?: string  // name of most-recently-added icon
 }
 
 async function readState(): Promise<State> {
@@ -37,4 +38,14 @@ export async function getActivePalette(): Promise<PaletteKey> {
 export async function setActivePalette(palette: PaletteKey): Promise<void> {
   const state = await readState()
   await writeState({ ...state, palette })
+}
+
+export async function getActiveIcon(): Promise<string | undefined> {
+  const state = await readState()
+  return state.icon
+}
+
+export async function setActiveIcon(name: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, icon: name })
 }
