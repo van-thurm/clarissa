@@ -7,6 +7,7 @@ import { preview } from './commands/preview.js'
 import { list } from './commands/list.js'
 import { palette } from './commands/palette.js'
 import { welcome } from './commands/welcome.js'
+import { fonts } from './commands/fonts.js'
 
 const program = new Command()
 
@@ -53,6 +54,17 @@ program
   .description('list palettes or set active palette')
   .action(async (name?: string) => {
     await palette(name).catch(err => {
+      console.error(`\n  error: ${err.message}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('fonts [name]')
+  .description('list fonts or preview a font')
+  .option('-t, --text <text>', 'custom sample text')
+  .action(async (name?: string, opts: { text?: string } = {}) => {
+    await fonts(name, opts.text).catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })

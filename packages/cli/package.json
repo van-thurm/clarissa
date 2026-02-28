@@ -20,13 +20,21 @@
   "dependencies": {
     "@clarissa/core": "*",
     "commander": "^12.1.0",
+    "figlet": "^1.10.0",
     "sharp": "^0.33.0"
   },
   "devDependencies": {
+    "@types/figlet": "^1.7.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
   },
-  "keywords": ["clarissa", "terminal", "pixel-art", "ascii", "cli"],
+  "keywords": [
+    "clarissa",
+    "terminal",
+    "pixel-art",
+    "ascii",
+    "cli"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=18"
