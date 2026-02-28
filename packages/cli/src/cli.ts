@@ -5,6 +5,7 @@ import type { PaletteKey } from '@clarissa/core'
 import { add } from './commands/add.js'
 import { preview } from './commands/preview.js'
 import { list } from './commands/list.js'
+import { palette } from './commands/palette.js'
 
 const program = new Command()
 
@@ -41,6 +42,16 @@ program
   .description('show all saved icons')
   .action(async () => {
     await list().catch(err => {
+      console.error(`\n  error: ${err.message}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('palette [name]')
+  .description('list palettes or set active palette')
+  .action(async (name?: string) => {
+    await palette(name).catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })
