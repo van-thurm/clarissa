@@ -2,30 +2,37 @@
   "name": "hey-clarissa",
   "version": "0.0.1",
   "description": "Clarissa — make your terminal feel like yours",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     }
   },
   "bin": {
     "clarissa": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@clarissa/core": "*",
     "commander": "^12.1.0",
     "figlet": "^1.10.0",
     "sharp": "^0.33.0"
   },
   "devDependencies": {
+    "@clarissa/core": "*",
     "@types/figlet": "^1.7.0",
     "@types/node": "^20.0.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.4.0"
   },
   "keywords": [
@@ -35,6 +42,11 @@
     "ascii",
     "cli"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/van-thurm/clarissa"
+  },
+  "homepage": "https://github.com/van-thurm/clarissa#readme",
   "license": "MIT",
   "engines": {
     "node": ">=18"
