@@ -4,3 +4,9 @@ dist/
 *.log
 chart.conf
 pipeline/output/
+archive/
+
+# session docs — private
+.claude/
+RESUMESESSION_HANDOFF.md
+HANDOFF.md
