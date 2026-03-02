@@ -6,9 +6,18 @@ import { saveIcon } from '../store.js'
 import { setActiveIcon, getActiveDir } from '../state.js'
 
 const DEFAULT_SIZE = 32
+const SIZE_PRESETS: Record<string, number> = { small: 16, medium: 32, large: 64 }
 
-export async function add(filePath: string, options: { size?: number; name?: string } = {}): Promise<void> {
-  const size = options.size ?? DEFAULT_SIZE
+function resolveSize(s: string | number | undefined): number {
+  if (s === undefined) return DEFAULT_SIZE
+  if (typeof s === 'number') return s
+  if (s in SIZE_PRESETS) return SIZE_PRESETS[s]
+  const n = parseInt(s, 10)
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_SIZE
+}
+
+export async function add(filePath: string, options: { size?: string | number; name?: string } = {}): Promise<void> {
+  const size = resolveSize(options.size)
 
   // If filePath is just a filename (no directory component), resolve against active dir
   const resolved = await resolveFilePath(filePath)
@@ -16,10 +25,10 @@ export async function add(filePath: string, options: { size?: number; name?: str
   const sourceName = path.basename(resolved)
   const iconName = options.name ?? deriveIconName(resolved)
 
-  // Load, resize (NEAREST — pixel-perfect, matches pixel_to_cli.py),
-  // and composite transparency onto white — same as Python's load_image().
+  // Load, resize (lanczos3 for quality at small sizes — nearest was blocky at 16px),
+  // and composite transparency onto white.
   const { data } = await sharp(resolved)
-    .resize(size, size, { kernel: sharp.kernel.nearest, fit: 'fill' })
+    .resize(size, size, { kernel: sharp.kernel.lanczos3, fit: 'fill' })
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .raw()
     .toBuffer({ resolveWithObject: true })

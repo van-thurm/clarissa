@@ -6,12 +6,12 @@ export default defineConfig([
     format: ['cjs', 'esm'],
     dts: true,
     clean: true,
-    external: ['sharp', 'commander', 'figlet'],
+    external: ['sharp', 'commander', 'figlet', 'readline/promises'],
   },
   {
     entry: { cli: 'src/cli.ts' },
     format: ['cjs'],
     dts: false,
-    external: ['sharp', 'commander', 'figlet'],
+    external: ['sharp', 'commander', 'figlet', 'readline/promises'],
   },
 ])

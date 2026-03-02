@@ -6,10 +6,36 @@ import { DEFAULT_PALETTE, PALETTE_KEYS } from '@clarissa/core'
 const CLARISSA_DIR = path.join(process.env.HOME ?? '/tmp', '.clarissa')
 const STATE_FILE = path.join(CLARISSA_DIR, 'state.json')
 
+export interface PlanetData {
+  sign: string
+  degree: number
+}
+
+export interface ChartData {
+  userName: string
+  birthDate: string
+  birthTime: string
+  birthPlace: string
+  sun: PlanetData
+  moon: PlanetData
+  rising: PlanetData
+  mercury: PlanetData
+  venus: PlanetData
+  mars: PlanetData
+  jupiter: PlanetData
+  saturn: PlanetData
+  uranus: PlanetData
+  neptune: PlanetData
+  pluto: PlanetData
+}
+
 interface State {
   palette: PaletteKey
-  icon?: string   // name of most-recently-added icon
-  dir?: string    // default image directory for clarissa add
+  icon?: string
+  dir?: string
+  chart?: ChartData
+  location?: string
+  goCommand?: string
 }
 
 async function readState(): Promise<State> {
@@ -20,7 +46,7 @@ async function readState(): Promise<State> {
     const palette = parsed.palette && PALETTE_KEYS.includes(parsed.palette)
       ? parsed.palette
       : DEFAULT_PALETTE
-    return { palette, icon: parsed.icon, dir: parsed.dir }
+    return { palette, icon: parsed.icon, dir: parsed.dir, chart: parsed.chart, location: parsed.location, goCommand: parsed.goCommand }
   } catch {
     return { palette: DEFAULT_PALETTE }
   }
@@ -59,4 +85,34 @@ export async function getActiveDir(): Promise<string | undefined> {
 export async function setActiveDir(dir: string): Promise<void> {
   const state = await readState()
   await writeState({ ...state, dir })
+}
+
+export async function getChart(): Promise<ChartData | undefined> {
+  const state = await readState()
+  return state.chart
+}
+
+export async function setChart(chart: ChartData): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, chart })
+}
+
+export async function getLocation(): Promise<string | undefined> {
+  const state = await readState()
+  return state.location
+}
+
+export async function setLocation(location: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, location })
+}
+
+export async function getGoCommand(): Promise<string | undefined> {
+  const state = await readState()
+  return state.goCommand
+}
+
+export async function setGoCommand(cmd: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, goCommand: cmd })
 }

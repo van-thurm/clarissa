@@ -156,6 +156,7 @@ export async function welcome(): Promise<void> {
     case 'daily':
       rl.close()
       await daily()
+      await welcome()
       break
 
     case '2':
@@ -164,6 +165,7 @@ export async function welcome(): Promise<void> {
       rl.close()
       console.log()
       if (q) await advice(q)
+      await welcome()
       break
     }
 
@@ -171,6 +173,7 @@ export async function welcome(): Promise<void> {
     case 'crafts':
       rl.close()
       await crafts()
+      await welcome()
       break
 
     case '4':

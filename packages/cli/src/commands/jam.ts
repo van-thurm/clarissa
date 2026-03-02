@@ -4,6 +4,8 @@ import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
 import { FONT_CATEGORIES } from './fonts.js'
+import { resizeRows } from '@clarissa/core'
+import { loadIcon } from '../store.js'
 
 const RESET  = '\x1b[0m'
 const DIM    = '\x1b[2m'
@@ -83,23 +85,48 @@ function buildFunction(
   cmd: string | null,
   fontRows: string[] | null,
   iconRows: string[] | null,
+  layout: 'above' | 'left' | 'right' = 'above',
 ): string {
   const lines: string[] = [`function ${name}() {`]
 
-  // Icon block — plain monochrome rows, no color wrap needed
-  if (iconRows && iconRows.length > 0) {
-    lines.push('  local _icon=(')
-    for (const row of iconRows) lines.push(`    "${bashEscape(row)}"`)
+  if (layout !== 'above' && iconRows && iconRows.length > 0 && fontRows && fontRows.length > 0) {
+    // Side-by-side: icon left = _left plain, font right = _right accent (and vice versa for 'right')
+    const leftRows  = layout === 'left' ? iconRows : fontRows
+    const rightRows = layout === 'left' ? fontRows  : iconRows
+    const lw = Math.max(...leftRows.map(r => r.length))
+    lines.push('  local _left=(')
+    for (const row of leftRows) lines.push(`    "${bashEscape(row)}"`)
     lines.push('  )')
-    lines.push("  printf '%s\\n' \"${_icon[@]}\"")
-  }
-
-  // Font header — wrap in accent color (ANSI 216)
-  if (fontRows && fontRows.length > 0) {
-    lines.push('  local _header=(')
-    for (const row of fontRows) lines.push(`    "${bashEscape(row)}"`)
+    lines.push('  local _right=(')
+    for (const row of rightRows) lines.push(`    "${bashEscape(row)}"`)
     lines.push('  )')
-    lines.push("  printf '\\033[38;5;216m'; printf '%s\\n' \"${_header[@]}\"; printf '\\033[0m'")
+    lines.push(`  local _lw=${lw}`)
+    lines.push('  local _i=0')
+    lines.push('  local _n=$(( ${#_left[@]} > ${#_right[@]} ? ${#_left[@]} : ${#_right[@]} ))')
+    lines.push('  while [[ $_i -lt $_n ]]; do')
+    if (layout === 'left') {
+      // icon left (no color), font right (accent)
+      lines.push('    printf "%-${_lw}s   \\033[38;5;216m%s\\033[0m\\n" "${_left[$_i]:-}" "${_right[$_i]:-}"')
+    } else {
+      // font left (accent), icon right (no color)
+      lines.push('    printf "\\033[38;5;216m%-${_lw}s\\033[0m   %s\\n" "${_left[$_i]:-}" "${_right[$_i]:-}"')
+    }
+    lines.push('    ((_i++))')
+    lines.push('  done')
+  } else {
+    // Stacked layout
+    if (iconRows && iconRows.length > 0) {
+      lines.push('  local _icon=(')
+      for (const row of iconRows) lines.push(`    "${bashEscape(row)}"`)
+      lines.push('  )')
+      lines.push("  printf '%s\\n' \"${_icon[@]}\"")
+    }
+    if (fontRows && fontRows.length > 0) {
+      lines.push('  local _header=(')
+      for (const row of fontRows) lines.push(`    "${bashEscape(row)}"`)
+      lines.push('  )')
+      lines.push("  printf '\\033[38;5;216m'; printf '%s\\n' \"${_header[@]}\"; printf '\\033[0m'")
+    }
   }
 
   // Command — runs exactly as typed, no arg passthrough (safe for cd, git, etc.)
@@ -199,10 +226,11 @@ export async function jam(): Promise<void> {
       }
     }
 
-    console.log(`  pick a font:  ${DIM}(number, or enter to skip)${RESET}`)
+    console.log(`  pick a font:  ${DIM}(number or name, or enter to skip)${RESET}`)
     const pick = (await rl.question(`  → `)).trim()
-    const idx = parseInt(pick, 10) - 1
-    if (!isNaN(idx) && idx >= 0 && idx < rendered.length) fontRows = rendered[idx].rows
+    let fontIdx = parseInt(pick, 10) - 1
+    if (isNaN(fontIdx) && pick) fontIdx = rendered.findIndex(r => r.font.toLowerCase() === pick.toLowerCase())
+    if (fontIdx >= 0 && fontIdx < rendered.length) fontRows = rendered[fontIdx].rows
     console.log()
   }
 
@@ -221,12 +249,39 @@ export async function jam(): Promise<void> {
       console.log(`  ${ACCENT}${LETTERS[i]}${RESET}  ${icons[i]}`)
     }
     console.log()
-    console.log(`  ${DIM}(letter, or enter to skip)${RESET}`)
-    const pick = (await rl.question(`  → `)).trim().toLowerCase()
-    const idx = LETTERS.indexOf(pick)
-    if (idx >= 0 && idx < icons.length) {
-      iconRows = await readIconRows(icons[idx])
+    console.log(`  ${DIM}(letter, name, or enter to skip)${RESET}`)
+    const pick = (await rl.question(`  → `)).trim()
+    let iconIdx = LETTERS.indexOf(pick.toLowerCase())
+    if (iconIdx < 0 && pick) iconIdx = icons.findIndex(n => n.toLowerCase() === pick.toLowerCase())
+    if (iconIdx >= 0 && iconIdx < icons.length) {
+      const selectedIcon = await loadIcon(icons[iconIdx])
+      iconRows = selectedIcon.rows
+      const storedSize = selectedIcon.size
+      console.log()
+      console.log(`  resize?  ${DIM}s=16  m=32  l=64  (enter to keep ${storedSize}px)${RESET}`)
+      const sizePick = (await rl.question(`  → `)).trim().toLowerCase()
+      const sizeMap: Record<string, number> = { s: 16, m: 32, l: 64 }
+      const targetSize = sizeMap[sizePick] ?? storedSize
+      if (targetSize !== storedSize) iconRows = resizeRows(iconRows, storedSize, targetSize)
     }
+    console.log()
+  }
+
+  // ── layout (only if both font + icon) ─────────────────────────────────────
+
+  let layout: 'above' | 'left' | 'right' = 'above'
+  if (fontRows && iconRows) {
+    console.log(hr())
+    console.log()
+    console.log(`  layout?`)
+    console.log()
+    console.log(`  ${ACCENT}l${RESET}  icon left, font right`)
+    console.log(`  ${ACCENT}r${RESET}  font left, icon right`)
+    console.log(`  ${DIM}enter  icon above font${RESET}`)
+    console.log()
+    const lp = (await rl.question(`  → `)).trim().toLowerCase()
+    if (lp === 'l') layout = 'left'
+    else if (lp === 'r') layout = 'right'
     console.log()
   }
 
@@ -235,7 +290,7 @@ export async function jam(): Promise<void> {
   // ── save ──────────────────────────────────────────────────────────────────
 
   await ensureShellsFile()
-  const fn = buildFunction(name, cmd, fontRows, iconRows)
+  const fn = buildFunction(name, cmd, fontRows, iconRows, layout)
   await fs.appendFile(SHELLS_FILE, `\n${fn}\n`)
   const patched = await ensureZshrcSourced()
 
@@ -245,14 +300,27 @@ export async function jam(): Promise<void> {
   console.log(`  ${DIM}preview${RESET}`)
   console.log()
 
-  if (iconRows && iconRows.length > 0) {
-    for (const row of iconRows) console.log(row)
+  if (layout !== 'above' && iconRows && fontRows) {
+    const leftRows  = layout === 'left' ? iconRows : fontRows
+    const rightRows = layout === 'left' ? fontRows  : iconRows
+    const lw = Math.max(...leftRows.map(r => r.length))
+    const n = Math.max(leftRows.length, rightRows.length)
+    for (let i = 0; i < n; i++) {
+      const l = (leftRows[i] ?? '').padEnd(lw)
+      const r = rightRows[i] ?? ''
+      if (layout === 'left') console.log(`${l}   ${ACCENT}${r}${RESET}`)
+      else                   console.log(`${ACCENT}${l}${RESET}   ${r}`)
+    }
     console.log()
-  }
-
-  if (fontRows && fontRows.length > 0) {
-    for (const row of fontRows) console.log(`  ${ACCENT}${row}${RESET}`)
-    console.log()
+  } else {
+    if (iconRows && iconRows.length > 0) {
+      for (const row of iconRows) console.log(row)
+      console.log()
+    }
+    if (fontRows && fontRows.length > 0) {
+      for (const row of fontRows) console.log(`  ${ACCENT}${row}${RESET}`)
+      console.log()
+    }
   }
 
   if (cmd) {
