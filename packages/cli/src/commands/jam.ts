@@ -18,7 +18,7 @@ const SHELLS_FILE  = path.join(CLARISSA_DIR, 'shells.sh')
 const ICONS_DIR    = path.join(CLARISSA_DIR, 'icons')
 const ZSHRC        = path.join(HOME, '.zshrc')
 
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz' // used for icon list only (short lists)
 
 // ── file helpers ──────────────────────────────────────────────────────────────
 
@@ -191,18 +191,18 @@ export async function jam(): Promise<void> {
           categoryPrinted = true
         }
 
-        const letter = LETTERS[rendered.length]
-        console.log(`  ${ACCENT}${letter}${RESET}  ${DIM}${font}${RESET}`)
+        const num = String(rendered.length + 1).padStart(2)
+        console.log(`  ${ACCENT}${num}${RESET}  ${DIM}${font}${RESET}`)
         for (const row of rows) console.log(`  ${ACCENT}${row}${RESET}`)
         console.log()
         rendered.push({ font, rows })
       }
     }
 
-    console.log(`  pick a font:  ${DIM}(letter, or enter to skip)${RESET}`)
-    const pick = (await rl.question(`  → `)).trim().toLowerCase()
-    const idx = LETTERS.indexOf(pick)
-    if (idx >= 0 && idx < rendered.length) fontRows = rendered[idx].rows
+    console.log(`  pick a font:  ${DIM}(number, or enter to skip)${RESET}`)
+    const pick = (await rl.question(`  → `)).trim()
+    const idx = parseInt(pick, 10) - 1
+    if (!isNaN(idx) && idx >= 0 && idx < rendered.length) fontRows = rendered[idx].rows
     console.log()
   }
 
