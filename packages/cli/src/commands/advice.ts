@@ -21,6 +21,118 @@ function isNotToday(question: string): boolean {
   return NOT_TODAY_PATTERNS.some(p => q.includes(p))
 }
 
+// ── response pools ───────────────────────────────────────────────────────────
+
+const WILDCARDS = [
+  'are you asking the right question?',
+  'sleep on it.',
+  'your gut already decided.',
+  'ask again when Mercury isn\'t being weird.',
+  'that\'s a tomorrow problem.',
+  'yes, but not the way you\'re thinking.',
+  'honestly? you already know.',
+  'the answer is in the question.',
+  'try it and find out.',
+  'not everything needs an answer today.',
+  'let it marinate.',
+  'what would future you say?',
+  'are you asking me or telling me?',
+]
+
+// Phase pools: index 0–6 maps to phase ranges (new → balsamic)
+const PHASE_RESPONSES: string[][] = [
+  // 0: New moon (phase 0–3) — fresh starts
+  [
+    'yes. plant the seed.',
+    'new moon says go — but start quiet.',
+    'this is exactly the right time to begin.',
+    'say yes. you can figure out the details later.',
+    'fresh start energy. don\'t overthink it.',
+  ],
+  // 1: Waxing crescent (phase 4–7) — building momentum
+  [
+    'build on what you started. keep going.',
+    'move forward, but stay grounded.',
+    'momentum is building — don\'t stop now.',
+    'yes, and take one more step than you think you should.',
+    'the crescent says: trust the process.',
+  ],
+  // 2: First quarter (phase 8–11) — push through
+  [
+    'expect resistance. push through anyway.',
+    'yes, but it won\'t be easy. do it anyway.',
+    'this is the hard part. keep going.',
+    'obstacles are just the universe checking your commitment.',
+    'quarter moon energy: act decisively.',
+  ],
+  // 3: Full moon (phase 12–15) — act boldly
+  [
+    'the timing is right. go for it.',
+    'full moon says yes — trust what you see clearly now.',
+    'act with confidence. everything is illuminated.',
+    'this is your moment. don\'t hold back.',
+    'obviously.',
+  ],
+  // 4: Waning gibbous (phase 16–19) — share and reflect
+  [
+    'share what you know before you move on.',
+    'yes, but give before you take.',
+    'slow down and appreciate what you have.',
+    'the answer is generosity.',
+    'teach someone else what you\'ve learned first.',
+  ],
+  // 5: Last quarter (phase 20–23) — release
+  [
+    'let it go. clear space first.',
+    'not today. simplify.',
+    'release what isn\'t working before adding more.',
+    'the moon says no. trust that.',
+    'sometimes the answer is less, not more.',
+  ],
+  // 6: Balsamic/dark moon (phase 24–28) — rest
+  [
+    'rest today. fresh energy comes soon.',
+    'not now. wait for the new moon.',
+    'the dark moon says: be still.',
+    'honor the quiet. the answer will come.',
+    'pause. you don\'t need to decide right now.',
+  ],
+]
+
+function getPhaseIndex(phase: number): number {
+  if (phase < 4)  return 0
+  if (phase < 8)  return 1
+  if (phase < 12) return 2
+  if (phase < 16) return 3
+  if (phase < 20) return 4
+  if (phase < 24) return 5
+  return 6
+}
+
+// Deterministic hash — same question + same day = same answer
+function simpleHash(str: string): number {
+  let h = 2166136261
+  for (const c of str) {
+    h ^= c.charCodeAt(0)
+    h = Math.imul(h, 16777619)
+    h >>>= 0
+  }
+  return h >>> 0
+}
+
+function pickResponse(question: string, phase: number, now: Date): string {
+  const dateStr = now.toDateString()
+  const hash = simpleHash(dateStr + '|' + question.toLowerCase().trim())
+
+  // 25% chance of wildcard
+  if (hash % 4 === 0) {
+    return WILDCARDS[hash % WILDCARDS.length]
+  }
+
+  const pool = PHASE_RESPONSES[getPhaseIndex(phase)]
+  return pool[hash % pool.length]
+}
+
 export async function advice(question: string): Promise<void> {
   const data = await getChart()
   if (!data) {
@@ -69,51 +181,11 @@ export async function advice(question: string): Promise<void> {
   console.log(`  ${DIM}"${question}"${RESET}`)
   console.log()
   console.log(`  Sun in ${currentSign} ${DIM}·${RESET} Moon is ${phaseName}`)
-  console.log()
-  console.log(`  ${DIM}for your chart${RESET}`)
   console.log(`  ${data.sun.sign} Sun ${DIM}·${RESET} ${data.moon.sign} Moon ${DIM}·${RESET} ${data.rising.sign} Rising`)
   console.log()
 
-  if (phase < 4) {
-    console.log(`  the new moon energy supports fresh starts. your`)
-    console.log(`  ${data.rising.sign} rising says: trust your intuition. your`)
-    console.log(`  ${data.sun.sign} Sun says: aim for what feels meaningful.`)
-    console.log()
-    console.log(`  ${ACCENT}→ yes, but start small. plant the seed today.${RESET}`)
-  } else if (phase < 8) {
-    console.log(`  the waxing crescent builds momentum. your Mars in`)
-    console.log(`  ${data.mars.sign} gives you intense focus. your ${data.moon.sign} Moon`)
-    console.log(`  wants security first. ground yourself, then act.`)
-    console.log()
-    console.log(`  ${ACCENT}→ move forward, but stay grounded. build carefully.${RESET}`)
-  } else if (phase < 12) {
-    console.log(`  first quarter moon brings challenges. your fire stellium`)
-    console.log(`  gives you courage to push through obstacles.`)
-    console.log()
-    console.log(`  ${ACCENT}→ expect resistance. push through anyway.${RESET}`)
-  } else if (phase < 16) {
-    console.log(`  the full moon illuminates truth. your ${data.moon.sign} Moon`)
-    console.log(`  feels this intensely — emotions may be high. your`)
-    console.log(`  ${data.sun.sign} fire keeps you moving forward.`)
-    console.log()
-    console.log(`  ${ACCENT}→ the timing is ripe. act with confidence.${RESET}`)
-  } else if (phase < 20) {
-    console.log(`  waning gibbous is for sharing and gratitude. your`)
-    console.log(`  ${data.sun.sign} teaching energy shines now. Venus in`)
-    console.log(`  ${data.venus.sign} reminds you: quality over speed.`)
-    console.log()
-    console.log(`  ${ACCENT}→ share what you know. give before you take.${RESET}`)
-  } else if (phase < 24) {
-    console.log(`  last quarter asks: what needs releasing? Saturn in`)
-    console.log(`  ${data.saturn.sign} knows discipline. let go of what's not working.`)
-    console.log()
-    console.log(`  ${ACCENT}→ clear space first. simplify, then proceed.${RESET}`)
-  } else {
-    console.log(`  the dark moon approaches — time for rest and reflection.`)
-    console.log(`  your ${data.rising.sign} Rising feels the pull of quiet. honor it.`)
-    console.log()
-    console.log(`  ${ACCENT}→ rest today. fresh energy comes soon.${RESET}`)
-  }
+  const response = pickResponse(question, phase, now)
+  console.log(`  ${ACCENT}→ ${response}${RESET}`)
 
   console.log()
   console.log(hr())

@@ -9,7 +9,7 @@ const ACCENT = '\x1b[38;5;216m'
 
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
 
-async function fetchWeather(location: string): Promise<string | null> {
+export async function fetchWeather(location: string): Promise<string | null> {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)

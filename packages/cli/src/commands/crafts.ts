@@ -1,8 +1,9 @@
 import * as readline from 'readline/promises'
 import fs from 'fs/promises'
 import path from 'path'
-import { PALETTES } from '@clarissa/core'
-import { getActivePalette } from '../state.js'
+import { PALETTES, PALETTE_KEYS } from '@clarissa/core'
+import type { PaletteKey } from '@clarissa/core'
+import { getActivePalette, setActivePalette } from '../state.js'
 import { ICONS_DIR, listIcons, loadIcon, saveIcon } from '../store.js'
 import { fonts } from './fonts.js'
 import { jam } from './jam.js'
@@ -53,8 +54,8 @@ async function showPixelArt(): Promise<void> {
   }
 
   console.log()
-  console.log(`  ${DIM}size presets work with any image file. --size accepts${RESET}`)
-  console.log(`  ${DIM}small · medium · large  or an exact pixel count (e.g. 48)${RESET}`)
+  console.log(`  ${DIM}run these from your terminal (not this menu).${RESET}`)
+  console.log(`  ${DIM}--size accepts small · medium · large · or a pixel count${RESET}`)
   console.log()
 }
 
@@ -143,7 +144,7 @@ async function library(): Promise<void> {
   }
 }
 
-// ── jams (jam command management) ─────────────────────────────────────────────
+// ── jams (unified jam management) ────────────────────────────────────────────
 
 async function listJamFunctions(): Promise<string[]> {
   try {
@@ -165,12 +166,10 @@ async function deleteJamFunction(fnName: string): Promise<void> {
   let i = 0
   while (i < lines.length) {
     if (lines[i].trimEnd() === startMarker) {
-      // Remove preceding blank line
       if (result.length > 0 && result[result.length - 1].trim() === '') result.pop()
-      // Skip body until closing `}`
       i++
       while (i < lines.length && lines[i].trimEnd() !== '}') i++
-      i++ // skip `}`
+      i++
     } else {
       result.push(lines[i])
       i++
@@ -179,32 +178,52 @@ async function deleteJamFunction(fnName: string): Promise<void> {
   await fs.writeFile(SHELLS_FILE, result.join('\n'))
 }
 
-async function jams(): Promise<void> {
+async function renameJamFunction(oldName: string, newName: string): Promise<void> {
+  const content = await fs.readFile(SHELLS_FILE, 'utf-8')
+  const oldMarker = `function ${oldName}() {`
+  const newMarker = `function ${newName}() {`
+  await fs.writeFile(SHELLS_FILE, content.replace(oldMarker, newMarker))
+}
+
+async function jamsMenu(): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   const fnNames = await listJamFunctions()
-
-  if (fnNames.length === 0) {
-    console.log()
-    console.log(`  ${DIM}no jam commands yet — make one with jam${RESET}`)
-    console.log()
-    rl.close()
-    return
-  }
 
   console.log()
   console.log(hr())
   console.log(`  ${BOLD}jams${RESET}`)
   console.log(hr())
   console.log()
-  for (let i = 0; i < fnNames.length; i++) {
-    console.log(`  ${ACCENT}${LETTERS[i]}${RESET}  ${fnNames[i]}`)
+  console.log(`  ${ACCENT}+${RESET}  ${BOLD}new jam${RESET}`)
+
+  if (fnNames.length > 0) {
+    console.log()
+    for (let i = 0; i < fnNames.length; i++) {
+      console.log(`  ${ACCENT}${LETTERS[i]}${RESET}  ${fnNames[i]}`)
+    }
+  } else {
+    console.log()
+    console.log(`  ${DIM}no jams yet${RESET}`)
   }
+
   console.log()
-  console.log(`  ${DIM}(letter or name to manage, enter to go back)${RESET}`)
+  console.log(`  ${DIM}(+ for new, letter to manage, enter to go back)${RESET}`)
 
   const pick = (await rl.question(`  → `)).trim()
+
+  if (pick === '+' || pick.toLowerCase() === 'new') {
+    rl.close()
+    await jam()
+    return
+  }
+
+  if (!pick) {
+    rl.close()
+    return
+  }
+
   let idx = LETTERS.indexOf(pick.toLowerCase())
-  if (idx < 0 && pick) idx = fnNames.findIndex(n => n.toLowerCase() === pick.toLowerCase())
+  if (idx < 0) idx = fnNames.findIndex(n => n.toLowerCase() === pick.toLowerCase())
 
   if (idx < 0 || idx >= fnNames.length) {
     rl.close()
@@ -216,6 +235,7 @@ async function jams(): Promise<void> {
   console.log()
   console.log(`  ${BOLD}${fnName}${RESET}`)
   console.log()
+  console.log(`  ${ACCENT}r${RESET}  rename`)
   console.log(`  ${ACCENT}d${RESET}  delete`)
   console.log(`  ${DIM}enter  back${RESET}`)
   console.log()
@@ -234,6 +254,70 @@ async function jams(): Promise<void> {
       console.log(`  ${DIM}deleted ${fnName}${RESET}`)
       console.log()
     }
+  } else if (action === 'r' || action === 'rename') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    const raw = (await rl2.question(`  new name:  `)).trim()
+    rl2.close()
+    if (!raw || !isValidName(raw)) {
+      console.log(`  ${DIM}invalid name — letters, numbers, hyphens only${RESET}`)
+      console.log()
+      return
+    }
+    if (fnNames.includes(raw)) {
+      console.log(`  ${DIM}${raw} already exists${RESET}`)
+      console.log()
+      return
+    }
+    await renameJamFunction(fnName, raw)
+    console.log()
+    console.log(`  ${DIM}renamed to ${raw}${RESET}`)
+    console.log()
+  }
+}
+
+// ── palette picker ───────────────────────────────────────────────────────────
+
+async function palettePicker(): Promise<void> {
+  const activePalette = await getActivePalette()
+
+  console.log()
+  console.log(hr())
+  console.log(`  ${BOLD}palette${RESET}`)
+  console.log(hr())
+  console.log()
+
+  const keys = PALETTE_KEYS
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    const p = PALETTES[key]
+    const swatch = p.color !== null
+      ? `\x1b[38;5;${p.color}m${'████████'}${RESET}`
+      : `${'████████'}`
+    const active = key === activePalette ? `  ${ACCENT}←${RESET}` : ''
+    console.log(`  ${ACCENT}${LETTERS[i]}${RESET}  ${swatch}  ${p.label}  ${DIM}${p.vibe}${RESET}${active}`)
+  }
+
+  console.log()
+  console.log(`  ${DIM}(letter or name to switch, enter to go back)${RESET}`)
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  const pick = (await rl.question(`  → `)).trim()
+  rl.close()
+
+  let idx = LETTERS.indexOf(pick.toLowerCase())
+  if (idx < 0 && pick) idx = keys.findIndex(k => k.toLowerCase() === pick.toLowerCase())
+
+  if (idx >= 0 && idx < keys.length) {
+    const chosen = keys[idx] as PaletteKey
+    await setActivePalette(chosen)
+    const p = PALETTES[chosen]
+    const swatch = p.color !== null
+      ? `\x1b[38;5;${p.color}m${'████████'}${RESET}`
+      : `${'████████'}`
+    console.log()
+    console.log(`  ${swatch}  switched to ${BOLD}${p.label}${RESET}`)
+    console.log()
   }
 }
 
@@ -245,11 +329,11 @@ export async function crafts(): Promise<void> {
   console.log(`  ${BOLD}clarissa crafts${RESET}`)
   console.log(hr())
   console.log()
-  console.log(`  ${DIM}a${RESET}  ${BOLD}pixel art${RESET}   icons, palettes, and image tools`)
-  console.log(`  ${DIM}b${RESET}  ${BOLD}fonts${RESET}       browse and preview ASCII fonts`)
-  console.log(`  ${DIM}c${RESET}  ${BOLD}jam${RESET}         make a new shell command`)
-  console.log(`  ${DIM}d${RESET}  ${BOLD}library${RESET}     rename or delete saved icons`)
-  console.log(`  ${DIM}e${RESET}  ${BOLD}jams${RESET}        view and delete jam commands`)
+  console.log(`  ${ACCENT}a${RESET}  ${BOLD}pixel art${RESET}   icons, palettes, and image tools`)
+  console.log(`  ${ACCENT}b${RESET}  ${BOLD}fonts${RESET}       browse and preview ASCII fonts`)
+  console.log(`  ${ACCENT}c${RESET}  ${BOLD}jams${RESET}        create, rename, or delete shell commands`)
+  console.log(`  ${ACCENT}d${RESET}  ${BOLD}library${RESET}     rename or delete saved icons`)
+  console.log(`  ${ACCENT}e${RESET}  ${BOLD}palette${RESET}     switch your color palette`)
   console.log()
   console.log(`  ${DIM}q  back  ·  ctrl+c to cancel${RESET}`)
   console.log()
@@ -272,7 +356,8 @@ export async function crafts(): Promise<void> {
       break
     case 'c':
     case 'jam':
-      await jam()
+    case 'jams':
+      await jamsMenu()
       await crafts()
       break
     case 'd':
@@ -281,15 +366,28 @@ export async function crafts(): Promise<void> {
       await crafts()
       break
     case 'e':
-    case 'jams':
-      await jams()
+    case 'palette':
+      await palettePicker()
       await crafts()
       break
     case 'q':
     case 'quit':
+    case 'back':
       break
     default:
-      if (choice) console.log(`\n  ${DIM}press a, b, c, d, or e${RESET}\n`)
+      if (choice) {
+        const stripped = choice.replace(/^clarissa\s+/, '')
+        if (['list', 'add', 'preview', 'dir'].some(c => stripped.startsWith(c))) {
+          console.log()
+          console.log(`  ${DIM}that's a terminal command — quit this menu first, then run:${RESET}`)
+          console.log(`  ${ACCENT}clarissa ${stripped}${RESET}`)
+          console.log()
+        } else {
+          console.log()
+          console.log(`  ${DIM}not a menu option — press ${ACCENT}a${DIM}–${ACCENT}e${DIM} or ${ACCENT}q${RESET}`)
+          console.log()
+        }
+      }
       await crafts()
   }
 }

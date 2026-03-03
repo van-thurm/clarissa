@@ -1,7 +1,7 @@
 import fs from 'fs/promises'
 import path from 'path'
 import * as readline from 'readline/promises'
-import { setChart, setLocation, getLocation } from '../state.js'
+import { setChart, setLocation, getLocation, getChart } from '../state.js'
 import type { ChartData, PlanetData } from '../state.js'
 import { chart as showChart } from './chart.js'
 
@@ -40,19 +40,24 @@ async function readChartConf(): Promise<Record<string, string>> {
   return result
 }
 
+class SetupCancelled extends Error {}
+
 function prompt(rl: readline.Interface, question: string, fallback?: string): Promise<string> {
   const hint = fallback ? ` ${DIM}[${fallback}]${RESET}` : ''
-  return rl.question(`  ${question}${hint}  `)
+  return rl.question(`  ${question}${hint}  `).then(v => {
+    if (v.trim().toLowerCase() === 'q') throw new SetupCancelled()
+    return v
+  })
 }
 
 async function askSign(rl: readline.Interface, label: string, fallback?: string): Promise<string> {
   while (true) {
     const hint = fallback ? ` ${DIM}[${fallback}]${RESET}` : ''
     const raw = (await rl.question(`  ${label}${hint}  `)).trim()
+    if (raw.toLowerCase() === 'q') throw new SetupCancelled()
     if (!raw && fallback) return fallback
     const match = SIGNS.find(s => s.toLowerCase() === raw.toLowerCase())
     if (match) return match
-    // Accept 1-12 index
     const n = parseInt(raw, 10)
     if (n >= 1 && n <= 12) return SIGNS[n - 1]
     console.log(`  ${DIM}enter a sign name or 1–12${RESET}`)
@@ -60,8 +65,16 @@ async function askSign(rl: readline.Interface, label: string, fallback?: string)
 }
 
 export async function setup(): Promise<void> {
-  const existing = await readChartConf()
-  const hasExisting = Object.keys(existing).length > 0
+  const [conf, savedChart] = await Promise.all([readChartConf(), getChart()])
+  const hasExisting = !!savedChart || Object.keys(conf).length > 0
+
+  // Prefer state.json (savedChart) over chart.conf for pre-filling
+  const fb = {
+    userName:   savedChart?.userName   || conf.USER_NAME   || '',
+    birthDate:  savedChart?.birthDate  || conf.BIRTH_DATE  || '',
+    birthTime:  savedChart?.birthTime  || conf.BIRTH_TIME  || '',
+    birthPlace: savedChart?.birthPlace || conf.BIRTH_PLACE || '',
+  }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 
@@ -71,71 +84,85 @@ export async function setup(): Promise<void> {
   if (hasExisting) {
     console.log(`  ${DIM}found existing chart — enter to keep · type to change${RESET}`)
   }
+  console.log(`  ${DIM}q to cancel at any prompt${RESET}`)
   console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
   console.log()
 
-  // ── birth info ────────────────────────────────────────────────────────────
+  try {
+    // ── birth info ──────────────────────────────────────────────────────────
 
-  console.log(`  ${DIM}── birth info${RESET}`)
-  console.log()
-
-  const userName   = ((await prompt(rl, 'your name',   existing.USER_NAME)).trim()   || existing.USER_NAME   || '').trim()
-  const birthDate  = ((await prompt(rl, 'birth date',  existing.BIRTH_DATE)).trim()  || existing.BIRTH_DATE  || '').trim()
-  const birthTime  = ((await prompt(rl, 'birth time',  existing.BIRTH_TIME)).trim()  || existing.BIRTH_TIME  || '').trim()
-  const birthPlace = ((await prompt(rl, 'birth place', existing.BIRTH_PLACE)).trim() || existing.BIRTH_PLACE || '').trim()
-
-  console.log()
-
-  // ── placements ────────────────────────────────────────────────────────────
-
-  console.log(`  ${DIM}── placements  (sign name or 1–12)${RESET}`)
-  console.log()
-
-  const placements: Partial<ChartData> = {}
-  for (const { key, label, glyph } of PLANETS) {
-    const confKey = key.toUpperCase()
-    const fallbackSign = existing[`${confKey}_SIGN`]
-    const fallbackDeg  = existing[`${confKey}_DEGREE`] !== undefined
-      ? parseInt(existing[`${confKey}_DEGREE`], 10)
-      : undefined
-
-    const sign = await askSign(rl, `${glyph}  ${label}`, fallbackSign)
-
-    // Keep existing degree if sign is unchanged; otherwise default to mid-sign (15°)
-    const degree = (fallbackSign && sign === fallbackSign && fallbackDeg !== undefined)
-      ? fallbackDeg
-      : 15
-
-    ;(placements as Record<string, PlanetData>)[key] = { sign, degree }
+    console.log(`  ${DIM}── birth info${RESET}`)
     console.log()
+
+    const userName   = ((await prompt(rl, 'your name',   fb.userName  || undefined)).trim()   || fb.userName).trim()
+    const birthDate  = ((await prompt(rl, 'birth date',  fb.birthDate || undefined)).trim()  || fb.birthDate).trim()
+    const birthTime  = ((await prompt(rl, 'birth time',  fb.birthTime || undefined)).trim()  || fb.birthTime).trim()
+    const birthPlace = ((await prompt(rl, 'birth place', fb.birthPlace|| undefined)).trim() || fb.birthPlace).trim()
+
+    console.log()
+
+    // ── placements ──────────────────────────────────────────────────────────
+
+    console.log(`  ${DIM}── placements  (sign name or 1–12)${RESET}`)
+    console.log()
+
+    const placements: Partial<ChartData> = {}
+    for (const { key, label, glyph } of PLANETS) {
+      const confKey = key.toUpperCase()
+      const savedPlacement = savedChart?.[key] as PlanetData | undefined
+      const fallbackSign = savedPlacement?.sign || conf[`${confKey}_SIGN`]
+      const fallbackDeg  = savedPlacement?.degree ?? (conf[`${confKey}_DEGREE`] !== undefined
+        ? parseInt(conf[`${confKey}_DEGREE`], 10)
+        : undefined)
+
+      const sign = await askSign(rl, `${glyph}  ${label}`, fallbackSign)
+
+      const degree = (fallbackSign && sign === fallbackSign && fallbackDeg !== undefined)
+        ? fallbackDeg
+        : 15
+
+      ;(placements as Record<string, PlanetData>)[key] = { sign, degree }
+      console.log()
+    }
+
+    // ── city ────────────────────────────────────────────────────────────────
+
+    console.log(`  ${DIM}── city${RESET}`)
+    console.log()
+
+    const existingCity = (await getLocation()) ?? ''
+    const cityInput = (await rl.question(`  ${DIM}city for weather (optional)${existingCity ? ` [${existingCity}]` : ''}${RESET}  `)).trim()
+    if (cityInput.toLowerCase() === 'q') throw new SetupCancelled()
+    const locationRaw = cityInput || existingCity
+
+    rl.close()
+
+    const chartData: ChartData = {
+      userName,
+      birthDate,
+      birthTime,
+      birthPlace,
+      ...(placements as Pick<ChartData, 'sun'|'moon'|'rising'|'mercury'|'venus'|'mars'|'jupiter'|'saturn'|'uranus'|'neptune'|'pluto'>),
+    }
+
+    await setChart(chartData)
+    if (locationRaw) await setLocation(locationRaw)
+
+    console.log()
+    console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
+    console.log(`  ${BOLD}chart saved.${RESET}`)
+    console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
+    console.log()
+
+    await showChart()
+  } catch (e) {
+    rl.close()
+    if (e instanceof SetupCancelled) {
+      console.log()
+      console.log(`  ${DIM}setup cancelled${RESET}`)
+      console.log()
+      return
+    }
+    throw e
   }
-
-  // ── city ──────────────────────────────────────────────────────────────────
-
-  console.log(`  ${DIM}── city${RESET}`)
-  console.log()
-
-  const existingCity = (await getLocation()) ?? ''
-  const locationRaw = ((await rl.question(`  ${DIM}city for weather (optional)${existingCity ? ` [${existingCity}]` : ''}${RESET}  `)).trim()) || existingCity
-
-  rl.close()
-
-  const chartData: ChartData = {
-    userName,
-    birthDate,
-    birthTime,
-    birthPlace,
-    ...(placements as Pick<ChartData, 'sun'|'moon'|'rising'|'mercury'|'venus'|'mars'|'jupiter'|'saturn'|'uranus'|'neptune'|'pluto'>),
-  }
-
-  await setChart(chartData)
-  if (locationRaw) await setLocation(locationRaw)
-
-  console.log()
-  console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
-  console.log(`  ${BOLD}chart saved.${RESET}`)
-  console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
-  console.log()
-
-  await showChart()
 }

@@ -1,4 +1,4 @@
-export type PaletteKey = 'mono' | 'ghost' | 'neon' | 'sakura' | 'forest'
+export type PaletteKey = 'mono' | 'ghost' | 'neon' | 'sakura' | 'forest' | 'sunset' | 'electric' | 'ocean' | 'candy' | 'gold' | 'lavender'
 
 export interface Palette {
   name: PaletteKey

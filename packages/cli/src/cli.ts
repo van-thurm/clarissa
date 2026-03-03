@@ -132,10 +132,10 @@ program
   })
 
 program
-  .command('advice <question>')
+  .command('advice <question...>')
   .description('moon-aware advice for today')
-  .action(async (question: string) => {
-    await advice(question).catch(err => {
+  .action(async (question: string[]) => {
+    await advice(question.join(' ')).catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })

@@ -147,7 +147,7 @@ export async function jam(): Promise<void> {
   console.log(`  ${DIM}make a new shell command${RESET}`)
   console.log(hr())
   console.log()
-  console.log(`  ${DIM}enter to skip any step  ·  ctrl+c to cancel${RESET}`)
+  console.log(`  ${DIM}ctrl+c to cancel${RESET}`)
   console.log()
 
   // ── name ──────────────────────────────────────────────────────────────────

@@ -31,6 +31,42 @@ export const PALETTES: Record<PaletteKey, Palette> = {
     vibe: 'grounded',
     color: 28,   // #008700 — deep forest green
   },
+  sunset: {
+    name: 'sunset',
+    label: 'Sunset',
+    vibe: 'warm and bold',
+    color: 208,  // #ff8700 — warm orange
+  },
+  electric: {
+    name: 'electric',
+    label: 'Electric',
+    vibe: 'loud',
+    color: 199,  // #ff00af — bright magenta
+  },
+  ocean: {
+    name: 'ocean',
+    label: 'Ocean',
+    vibe: 'deep and calm',
+    color: 33,   // #0087ff — deep blue
+  },
+  candy: {
+    name: 'candy',
+    label: 'Candy',
+    vibe: 'sweet and hot',
+    color: 213,  // #ff87ff — hot pink
+  },
+  gold: {
+    name: 'gold',
+    label: 'Gold',
+    vibe: 'rich',
+    color: 220,  // #ffd700 — warm gold
+  },
+  lavender: {
+    name: 'lavender',
+    label: 'Lavender',
+    vibe: 'dreamy',
+    color: 141,  // #af87ff — soft purple
+  },
 }
 
 export const DEFAULT_PALETTE: PaletteKey = 'mono'
