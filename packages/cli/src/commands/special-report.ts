@@ -2,6 +2,7 @@ import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import * as readline from 'readline/promises'
 import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol } from '../astro/moon.js'
 
 const RESET  = '\x1b[0m'
@@ -186,44 +187,6 @@ function getArchetype() {
   return { name, glyph, verbSentence }
 }
 
-// ── claude stats ──────────────────────────────────────────────────────────────
-
-function getClaudeStats() {
-  const cachePath = path.join(os.homedir(), '.claude', 'stats-cache.json')
-  try {
-    const raw = JSON.parse(fs.readFileSync(cachePath, 'utf-8'))
-    const weekAgo     = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000)
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-    const activity: { date: string; sessionCount: number; messageCount: number }[] = raw.dailyActivity ?? []
-
-    const thisWeekSessions = activity
-      .filter(d => new Date(d.date) >= weekAgo)
-      .reduce((s, d) => s + d.sessionCount, 0)
-    const prevWeekSessions = activity
-      .filter(d => new Date(d.date) >= twoWeeksAgo && new Date(d.date) < weekAgo)
-      .reduce((s, d) => s + d.sessionCount, 0)
-
-    const hourCounts: Record<string, number> = raw.hourCounts ?? {}
-    const peakHour = (() => {
-      const top = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]
-      if (!top) return ''
-      const h = parseInt(top[0])
-      return `${h > 12 ? h - 12 : h === 0 ? 12 : h}${h >= 12 ? 'pm' : 'am'}`
-    })()
-
-    return {
-      totalSessions: raw.totalSessions ?? 0,
-      totalMessages: raw.totalMessages ?? 0,
-      thisWeekSessions,
-      prevWeekSessions,
-      peakHour,
-      asOf: raw.lastComputedDate ?? '',
-    }
-  } catch {
-    return null
-  }
-}
-
 // ── open tasks ────────────────────────────────────────────────────────────────
 
 function parseHandoffTasks(content: string): string[] {
@@ -283,21 +246,133 @@ function getOpenTasks(base: string) {
 // ── today signal ──────────────────────────────────────────────────────────────
 
 const TODAY_POOL = [
-  'git log --oneline --graph. if you\'ve never run it, today\'s the day.',
-  'what\'s the one thing on your list you\'ve been skipping?',
-  'git stash list. anything in there you forgot about?',
-  'your terminal is only as useful as your shortcuts. add one this week.',
-  'the best commit message is a present-tense verb.',
-  'when did you last run the thing you\'re building?',
-  'a good alias saves 6 seconds. twenty times a day. do the math.',
-  'what would you ship if you knew it would work?',
-  'git diff HEAD~1. just to see what yesterday looked like.',
-  'the best debugging tool is reading it out loud.',
-  'you\'ve been at this for a while. what\'s gotten easier?',
-  'push something today, even if it\'s small.',
-  'what\'s the simplest version of what you\'re trying to do?',
-  'your future self will thank you for writing that comment.',
-  'close a tab you haven\'t looked at in three days.',
+  // — terminal keyboard shortcuts —
+  'ctrl+a  move to start of line',
+  'ctrl+e  move to end of line',
+  'ctrl+u  delete from cursor to start of line',
+  'ctrl+k  delete from cursor to end of line',
+  'ctrl+w  delete the word before cursor',
+  'ctrl+r  reverse search through command history',
+  'ctrl+l  clear the screen (keeps history)',
+  'ctrl+c  cancel current command',
+  'ctrl+z  suspend current process (fg to resume)',
+  'ctrl+d  exit shell or send EOF',
+  'alt+b   move back one word',
+  'alt+f   move forward one word',
+  'alt+d   delete word after cursor',
+  'alt+.   paste last argument from previous command',
+  'ctrl+p  previous command (same as up arrow)',
+  'ctrl+n  next command (same as down arrow)',
+  '!!      repeat last command',
+  '!$      last argument of previous command',
+  '!^      first argument of previous command',
+  'ctrl+xx toggle between current position and start of line',
+  'ctrl+t  swap character under cursor with the previous one',
+  'ctrl+y  paste (yank) text previously deleted with ctrl+u or ctrl+k',
+  'escape+t swap the two words before cursor',
+  'tab     autocomplete file/command names — double-tap for options',
+  'ctrl+_  undo last edit (works in most terminal emulators)',
+  'cd -    go back to previous directory',
+  'pushd / popd  push/pop directory stack — useful for multi-dir navigation',
+  'history | grep <term>  search command history by keyword',
+  'reset   fix a broken terminal display (when output is garbled)',
+  '> file  redirect stdout to a file (overwrites)',
+  '>> file append stdout to a file',
+  '2>&1    redirect stderr to stdout',
+  '| tee file  pipe output to screen AND save to file simultaneously',
+  'cmd &   run command in background',
+  'jobs    list background/suspended processes',
+  'fg %1   bring background job 1 to foreground',
+  'kill %1 terminate background job 1',
+  'open .  open current directory in Finder (macOS)',
+  'pbcopy  pipe to clipboard on macOS: cat file.txt | pbcopy',
+  'pbpaste paste clipboard contents in terminal on macOS',
+  'say "done"  macOS text-to-speech — useful for long builds',
+  'caffeinate  prevent Mac from sleeping during long processes',
+  'which <cmd>  show the full path to a command',
+  'type <cmd>  show if a command is built-in, alias, or binary',
+  'man <cmd>  open the manual page for any command',
+  'tldr <cmd>  simplified man page examples (install with brew)',
+  'option+click  move cursor to clicked position in most terminals',
+  'cmd+k   clear terminal scrollback (macOS terminal.app)',
+  'ctrl+shift+c / v  copy/paste in many Linux terminals',
+  'esc then b/f  word-by-word navigation (when alt+b/f don\'t work)',
+
+  // — git best practices —
+  'commit often. a commit is a checkpoint, not a finished product.',
+  'write commit messages in imperative mood: "fix bug" not "fixed bug"',
+  'git status before anything. know what state you\'re in.',
+  'git diff --staged  review exactly what you\'re about to commit',
+  'use branches for every feature, bug, or experiment — even small ones',
+  'git stash is your friend. clear state without losing work.',
+  'git log --oneline --graph --all  see your whole branch tree at once',
+  'rebase vs merge: rebase for clean history, merge for shared branches',
+  'never force-push to a shared branch. it rewrites history for everyone.',
+  'squash commits before merging a PR — keep the main branch clean',
+  '.gitignore is a first-class part of your project. write it early.',
+  'use git bisect to find the exact commit that introduced a bug',
+  'tag your releases: git tag v1.0.0 — makes rollback trivial',
+  'git blame <file>  see who last changed every line and why',
+  'keep commits small and focused on one logical change',
+  'pull before you push — avoid unnecessary merge conflicts',
+  'use git worktrees to work on two branches simultaneously',
+  'alias your most-used git commands in .gitconfig or .zshrc',
+  'cherry-pick moves individual commits between branches without merging',
+  'git reflog is a safety net — recent actions are recoverable for weeks',
+  'git clean -fd  remove untracked files and directories (destructive!)',
+  'git shortlog -sn  see contributors ranked by commit count',
+  'write a CONTRIBUTING.md — define commit conventions for the team',
+  'use .git/hooks/pre-commit to automate linting before every commit',
+  'git show HEAD  review the last commit in full detail',
+  'interactive rebase: git rebase -i HEAD~5 to edit recent history',
+  'git archive  export a clean snapshot without the .git folder',
+  'sign commits with GPG for verified author identity on GitHub',
+  'semantic versioning: MAJOR.MINOR.PATCH — know which one to bump',
+  'use conventional commits: feat:, fix:, chore:, docs:, refactor:',
+  'git config --global alias.lg "log --oneline --graph --all"  save it',
+  'before deleting a branch, make sure it\'s merged: git branch --merged',
+  'git fetch vs git pull: fetch downloads, pull fetches AND merges',
+  'git diff origin/main  compare local branch to remote before a PR',
+  'mark incomplete work with a WIP: commit — signals it\'s not ready',
+  'never commit secrets. use environment variables and .env files.',
+
+  // — women in computer engineering history —
+  'Ada Lovelace wrote what is considered the first algorithm intended for a machine — in 1843, for a computer that hadn\'t been built yet.',
+  'Grace Hopper invented the first compiler in 1952, translating human-readable code into machine language for the first time.',
+  'Grace Hopper popularized the term "debugging" after a moth was found in a relay of the Harvard Mark II in 1947.',
+  'Katherine Johnson\'s orbital mechanics calculations for Project Mercury were so trusted, John Glenn refused to fly until she personally verified the computer\'s numbers.',
+  'Dorothy Vaughan became NASA\'s first Black supervisor in 1949 and taught herself and her team FORTRAN before the agency\'s human computers were replaced by machines.',
+  'Mary Jackson was NASA\'s first Black female engineer, petitioning a Virginia court to attend segregated classes needed for her engineering credentials.',
+  'The women of ENIAC — Jean Jennings Bartik, Frances Bilas Spence, Betty Holberton, and others — programmed the world\'s first general-purpose electronic computer in 1945, then went largely unrecognized for decades.',
+  'Betty Holberton developed the first statistical analysis software package and co-designed the COBOL and FORTRAN standards.',
+  'Jean Sammet was one of the developers of COBOL, a programming language still running billions of dollars of financial transactions today.',
+  'Hedy Lamarr — yes, the actress — co-invented frequency-hopping spread spectrum in 1942, a concept now fundamental to Wi-Fi, GPS, and Bluetooth.',
+  'Radia Perlman invented the Spanning Tree Protocol (STP) in 1985, making modern ethernet networks possible. She\'s sometimes called the "Mother of the Internet."',
+  'Frances Allen became IBM\'s first female Fellow in 1989 and won the Turing Award in 2006 for foundational work in compiler optimization.',
+  'Adele Goldberg co-developed Smalltalk-80 at Xerox PARC — the language that introduced object-oriented programming to the world.',
+  'Susan Kare designed the original Macintosh icons and typefaces in 1984 — the trash can, the command symbol, Chicago font — things you still see echoes of today.',
+  'Lynn Conway revolutionized VLSI chip design in the 1970s, her methods now used in almost every chip ever made since.',
+  'Sophie Wilson designed the ARM instruction set architecture in 1983 — the ISA powering the vast majority of mobile devices on the planet today.',
+  'Rear Admiral Grace Hopper received the Presidential Medal of Freedom posthumously in 2016. The USS Hopper destroyer is named after her.',
+  'Anita Borg founded the Institute for Women and Technology in 1994, which became AnitaB.org — the organization behind the Grace Hopper Celebration conference.',
+  'Parisa Tabriz is Google\'s "Security Princess" — she\'s led Chrome\'s security team since 2007 and oversees security across one of the most used software products on Earth.',
+  'Fran Allen\'s 1966 paper "Program Optimization" at IBM defined decades of compiler research and introduced the idea of program flow analysis.',
+  'Megan Smith served as the United States Chief Technology Officer from 2014–2017, the first woman to hold that role.',
+  'Reshma Saujani founded Girls Who Code in 2012 — the organization has since reached 500,000+ girls and young women in computing programs.',
+  'Arlene Harris has been called the "Mother of Wireless" — she co-founded multiple wireless technology companies and holds dozens of telecom patents.',
+  'Barbara Liskov developed the Liskov Substitution Principle (the L in SOLID) and won the Turing Award in 2008 — one of only three women ever to receive it.',
+  'Shafi Goldwasser won the Turing Award in 2012 for her work on complexity theory, cryptography, and the foundations of probabilistic encryption.',
+  'Joy Buolamwini\'s Algorithmic Justice League highlighted facial recognition bias — her research showed error rates up to 35% higher for darker-skinned women vs. lighter-skinned men.',
+  'Carol Shaw was one of the first female game designers, creating River Raid for Atari in 1982 — still considered a design landmark of the era.',
+  'Evelyn Berezin designed the first true word processor in 1971, the Vydec Word Processing System — predating any similar product by years.',
+  'Annie Easley, a NASA computer scientist, developed code for the Centaur rocket stage — the technology later used in Cassini, Viking, and other landmark missions.',
+  'Safra Catz has served as CEO of Oracle since 2014, overseeing one of the largest enterprise software companies in the world.',
+  'Limor Fried (LadyAda) founded Adafruit Industries in 2005, building one of the most influential open-source hardware companies from her MIT dorm room.',
+  'Yoky Matsuoka co-founded Google X and was Nest\'s first CTO — her research in neurobotics focused on brain-computer interfaces and prosthetic limb control.',
+  'Timnit Gebru\'s research on data sheets for datasets and bias in AI systems has fundamentally changed how industry thinks about responsible AI development.',
+  'The U.S. Navy\'s programming language ADA is named after Ada Lovelace — the only programming language named after a woman.',
+  'In the 1960s, NASA employed hundreds of women as "computers" — the word meant a person who computed, before it meant a machine.',
+  'Margaret Hamilton coined the term "software engineering" and led the Apollo 11 flight software team, whose code famously saved the moon landing.',
 ]
 
 function simpleHash(str: string): number {
@@ -327,74 +402,72 @@ export async function specialReport(): Promise<void> {
   const repos       = findGitRepos(CURSORZ)
   const git         = getGitStats(repos)
   const arch        = getArchetype()
-  const claude      = getClaudeStats()
   const openTasks   = getOpenTasks(CURSORZ)
   const todaySignal = getTodaySignal(now)
 
   console.log()
   console.log(hr())
   console.log()
-  console.log(`  ${BOLD}clarissa special report${RESET}`)
+  console.log(`  ${ACCENT}◆${RESET} ${BOLD}clarissa special report${RESET}`)
   console.log(`  ${DIM}${symbol} ${phaseName}  ·  ${dateStr}${RESET}`)
   console.log()
   console.log(hr())
   console.log()
 
-  // ── this week
-  console.log(`  ${DIM}── this week${RESET}`)
+  // this week
+  console.log(`  ${DIM}this week${RESET}`)
   console.log()
   if (git.commits > 0) {
-    const parts = [`${BOLD}${git.commits}${RESET} commits`]
-    if (git.streak > 0) parts.push(`${git.streak}-day streak`)
-    if (git.activeProjects.length > 0) parts.push(`${DIM}${git.activeProjects.join(', ')}${RESET}`)
-    console.log(`  ${parts.join(`  ${DIM}·${RESET}  `)}`)
-    console.log(`  ${DIM}${git.fileLabel}${RESET}`)
-    if (git.timingSentence) console.log(`  ${DIM}${git.timingSentence}${RESET}`)
+    const statParts = [`${BOLD}${git.commits}${RESET} commits`]
+    if (git.streak > 0) statParts.push(`${git.streak}-day streak`)
+    console.log(`  ${statParts.join(`  ${DIM}·${RESET}  `)}`)
+    const supportParts: string[] = [git.fileLabel]
+    if (git.activeProjects.length > 0) supportParts.push(git.activeProjects.join(', '))
+    if (git.timingSentence) supportParts.push(git.timingSentence)
+    console.log(`  ${DIM}${supportParts.join('  ·  ')}${RESET}`)
   } else {
     console.log(`  ${DIM}no commits this week${RESET}`)
   }
   console.log()
 
-  // ── archetype
-  console.log(`  ${DIM}── you are a ${arch.name}${RESET}`)
-  console.log()
+  // archetype
+  console.log(`  ${DIM}${arch.name}${RESET}`)
   if (arch.verbSentence) console.log(`  ${arch.verbSentence}`)
   console.log()
 
-  // ── claude
-  console.log(`  ${DIM}── claude${RESET}`)
-  console.log()
-  if (claude) {
-    const trend = claude.thisWeekSessions > claude.prevWeekSessions ? ' ↑'
-      : claude.thisWeekSessions < claude.prevWeekSessions ? ' ↓' : ''
-    console.log(`  ${BOLD}${claude.totalSessions}${RESET} sessions  ·  ${BOLD}${claude.totalMessages}${RESET} messages all time`)
-    if (claude.thisWeekSessions > 0 || claude.prevWeekSessions > 0) {
-      const prevNote = claude.prevWeekSessions > 0 ? `  ${DIM}(${trend || '→'} from ${claude.prevWeekSessions} last week)${RESET}` : ''
-      console.log(`  ${DIM}${claude.thisWeekSessions} sessions this week${prevNote}${RESET}`)
-    }
-    if (claude.peakHour) console.log(`  ${DIM}you tend to start around ${claude.peakHour}${RESET}`)
-    if (claude.asOf) console.log(`  ${DIM}stats through ${claude.asOf}${RESET}`)
-  } else {
-    console.log(`  ${DIM}no claude stats found (~/.claude/stats-cache.json)${RESET}`)
-  }
-  console.log()
-
-  // ── open tasks
+  // open tasks
   if (openTasks.length > 0) {
-    console.log(`  ${DIM}── open tasks${RESET}`)
+    console.log(`  ${DIM}open tasks${RESET}`)
     console.log()
     const pad = Math.max(...openTasks.map(p => p.project.length))
     for (const { project, tasks } of openTasks) {
-      console.log(`  ${ACCENT}${project.padEnd(pad)}${RESET}  ${DIM}${tasks.join('  ·  ')}${RESET}`)
+      console.log(`  ${ACCENT}${project.padEnd(pad)}${RESET}  ${DIM}${tasks[0]}${RESET}`)
+      for (const t of tasks.slice(1)) {
+        console.log(`  ${''.padEnd(pad)}  ${DIM}${t}${RESET}`)
+      }
     }
     console.log()
   }
 
-  // ── today
-  console.log(`  ${DIM}── today${RESET}`)
-  console.log()
-  console.log(`  ${todaySignal}`)
+  // today — no label, just the signal
+  console.log(`  ${ACCENT}·${RESET}  ${todaySignal}`)
   console.log()
   console.log(hr())
   console.log()
+
+  // nav pause
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  console.log(`  ${DIM}m  menu   q  quit${RESET}`)
+  console.log()
+  while (true) {
+    const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+    if (pick === 'q' || pick === 'quit') { rl.close(); process.exit(0) }
+    if (!pick || pick === 'm' || pick === 'menu') {
+      rl.close()
+      const { welcome } = await import('./welcome.js')
+      await welcome()
+      return
+    }
+    console.log(`  ${DIM}press m for menu or q to quit${RESET}`)
+  }
 }

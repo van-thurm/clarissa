@@ -11,6 +11,7 @@ import { daily } from './daily.js'
 import { advice } from './advice.js'
 import { crafts } from './crafts.js'
 import { setup } from './setup.js'
+import { specialReport } from './special-report.js'
 
 const RESET = '\x1b[0m'
 const DIM   = '\x1b[2m'
@@ -70,7 +71,7 @@ async function waitForMenu(): Promise<string | null> {
     }
 
     // Allow jumping directly to a section
-    if (['1', 'daily', '2', 'advice', '3', 'crafts', '4', 'setup', 'g', 'go'].includes(pick)) {
+    if (['1', 'special-report', 'special', '2', 'advice', '3', 'crafts', '4', 'horoscope', 'daily', '5', 'setup', 'g', 'go'].includes(pick)) {
       rl.close()
       return pick
     }
@@ -132,9 +133,8 @@ async function handleChoice(choice: string): Promise<void> {
   // This avoids duplicating switch logic — just call welcome which handles it
   // But we need to skip the menu display and go straight to the action
   switch (choice) {
-    case '1': case 'daily':
-      await daily()
-      { const j = await waitForMenu(); if (j) return handleChoice(j) }
+    case '1': case 'special-report': case 'special':
+      await specialReport()
       await welcome()
       break
     case '2': case 'advice': {
@@ -154,7 +154,12 @@ async function handleChoice(choice: string): Promise<void> {
       await crafts()
       await welcome()
       break
-    case '4': case 'setup':
+    case '4': case 'horoscope': case 'daily':
+      await daily()
+      { const j = await waitForMenu(); if (j) return handleChoice(j) }
+      await welcome()
+      break
+    case '5': case 'setup':
       await setup()
       { const j = await waitForMenu(); if (j) return handleChoice(j) }
       await welcome()
@@ -230,10 +235,11 @@ export async function welcome(): Promise<void> {
   console.log()
   console.log(`  ${HR}`)
   console.log()
-  console.log(`  ${dim('1')}  ${bold('daily')}`)
+  console.log(`  ${dim('1')}  ${bold('special report')}`)
   console.log(`  ${dim('2')}  ${bold('advice')}`)
   console.log(`  ${dim('3')}  ${bold('crafts')}`)
-  console.log(`  ${dim('4')}  ${bold('setup')}`)
+  console.log(`  ${dim('4')}  ${bold('horoscope')}`)
+  console.log(`  ${dim('5')}  ${bold('setup')}`)
   console.log()
   console.log(`  ${dim('g')}  ${bold('quit + go')}  ${goCommand ? dim(goCommand) : dim('not set')}`)
   console.log(`  ${dim('q')}  quit`)
@@ -247,11 +253,10 @@ export async function welcome(): Promise<void> {
 
   switch (choice) {
     case '1':
-    case 'daily': {
+    case 'special-report':
+    case 'special': {
       rl.close()
-      await daily()
-      const jump = await waitForMenu()
-      if (jump) return handleChoice(jump)
+      await specialReport()
       await welcome()
       break
     }
@@ -278,13 +283,25 @@ export async function welcome(): Promise<void> {
       break
 
     case '4':
-    case 'setup':
+    case 'horoscope':
+    case 'daily': {
       rl.close()
-      await setup()
+      await daily()
       const jump = await waitForMenu()
       if (jump) return handleChoice(jump)
       await welcome()
       break
+    }
+
+    case '5':
+    case 'setup': {
+      rl.close()
+      await setup()
+      const jump2 = await waitForMenu()
+      if (jump2) return handleChoice(jump2)
+      await welcome()
+      break
+    }
 
     case 'g':
     case 'go': {
@@ -318,7 +335,7 @@ export async function welcome(): Promise<void> {
 
     default:
       rl.close()
-      if (choice) console.log(`  ${dim('press 1 · 2 · 3 · 4 · g · q')}\n`)
+      if (choice) console.log(`  ${dim('press 1 · 2 · 3 · 4 · 5 · g · q')}\n`)
       await welcome()
   }
 }
