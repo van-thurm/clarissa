@@ -36,6 +36,7 @@ interface State {
   chart?: ChartData
   location?: string
   goCommand?: string
+  reposDir?: string
 }
 
 async function readState(): Promise<State> {
@@ -46,7 +47,7 @@ async function readState(): Promise<State> {
     const palette = parsed.palette && PALETTE_KEYS.includes(parsed.palette)
       ? parsed.palette
       : DEFAULT_PALETTE
-    return { palette, icon: parsed.icon, dir: parsed.dir, chart: parsed.chart, location: parsed.location, goCommand: parsed.goCommand }
+    return { palette, icon: parsed.icon, dir: parsed.dir, chart: parsed.chart, location: parsed.location, goCommand: parsed.goCommand, reposDir: parsed.reposDir }
   } catch {
     return { palette: DEFAULT_PALETTE }
   }
@@ -115,4 +116,14 @@ export async function getGoCommand(): Promise<string | undefined> {
 export async function setGoCommand(cmd: string): Promise<void> {
   const state = await readState()
   await writeState({ ...state, goCommand: cmd })
+}
+
+export async function getReposDir(): Promise<string | undefined> {
+  const state = await readState()
+  return state.reposDir
+}
+
+export async function setReposDir(dir: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, reposDir: dir })
 }

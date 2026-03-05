@@ -1,7 +1,7 @@
 import fs from 'fs/promises'
 import path from 'path'
 import * as readline from 'readline/promises'
-import { setChart, setLocation, getLocation, getChart } from '../state.js'
+import { setChart, setLocation, getLocation, getChart, getReposDir, setReposDir } from '../state.js'
 import type { ChartData, PlanetData } from '../state.js'
 import { chart as showChart } from './chart.js'
 
@@ -65,7 +65,7 @@ async function askSign(rl: readline.Interface, label: string, fallback?: string)
 }
 
 export async function setup(): Promise<void> {
-  const [conf, savedChart] = await Promise.all([readChartConf(), getChart()])
+  const [conf, savedChart, savedReposDir] = await Promise.all([readChartConf(), getChart(), getReposDir()])
   const hasExisting = !!savedChart || Object.keys(conf).length > 0
 
   // Prefer state.json (savedChart) over chart.conf for pre-filling
@@ -135,6 +135,18 @@ export async function setup(): Promise<void> {
     if (cityInput.toLowerCase() === 'q') throw new SetupCancelled()
     const locationRaw = cityInput || existingCity
 
+    console.log()
+
+    // ── repos dir ────────────────────────────────────────────────────────────
+
+    console.log(`  ${DIM}── repos dir${RESET}`)
+    console.log()
+    console.log(`  ${DIM}folder containing your git projects — for the special report${RESET}`)
+    console.log()
+    const reposDirInput = (await rl.question(`  ${DIM}projects folder${savedReposDir ? ` [${savedReposDir}]` : ' (optional)'}${RESET}  `)).trim()
+    if (reposDirInput.toLowerCase() === 'q') throw new SetupCancelled()
+    const reposDirRaw = reposDirInput || savedReposDir || ''
+
     rl.close()
 
     const chartData: ChartData = {
@@ -147,6 +159,7 @@ export async function setup(): Promise<void> {
 
     await setChart(chartData)
     if (locationRaw) await setLocation(locationRaw)
+    if (reposDirRaw) await setReposDir(reposDirRaw)
 
     console.log()
     console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)

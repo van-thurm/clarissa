@@ -1,9 +1,9 @@
 import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
 import * as readline from 'readline/promises'
 import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol } from '../astro/moon.js'
+import { getReposDir } from '../state.js'
 
 const RESET  = '\x1b[0m'
 const DIM    = '\x1b[2m'
@@ -119,72 +119,53 @@ function getGitStats(repos: string[]) {
     timingSentence = `peak commit time: ${h12}${ampm}`
   }
 
+  // Commits per day of current week (Mon=0 … Sun=6)
+  const todayDow = (today.getDay() + 6) % 7
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - todayDow)
+  weekStart.setHours(0, 0, 0, 0)
+  const commitsByDay = [0, 0, 0, 0, 0, 0, 0]
+  for (const d of allDates) {
+    const date = new Date(d + 'T12:00:00')
+    if (date >= weekStart) {
+      const dow = (date.getDay() + 6) % 7
+      commitsByDay[dow]++
+    }
+  }
+
   return {
     commits: allDates.length,
     streak,
     fileLabel,
     activeProjects: [...new Set(activeProjects)],
     timingSentence,
+    commitsByDay,
   }
 }
 
-// ── archetype ─────────────────────────────────────────────────────────────────
+// ── commit bars ───────────────────────────────────────────────────────────────
 
-function getArchetype() {
-  const histPath = path.join(os.homedir(), '.zsh_history')
-  let raw = ''
-  try { raw = fs.readFileSync(histPath, 'utf-8') } catch { /* no history */ }
+function renderBars(commitsByDay: number[], todayDow: number): void {
+  const labels = ['m', 't', 'w', 't', 'f', 's', 's']
+  const maxVal = Math.max(...commitsByDay, 1)
+  const MAX_BARS = 12
 
-  const gitVerbs: Record<string, number> = {}
-  let gitCount = 0, npmCount = 0, fileCount = 0, nodeCount = 0, buildCount = 0, total = 0
+  for (let i = 0; i < 7; i++) {
+    const count     = commitsByDay[i]
+    const isFuture  = i > todayDow
+    const isToday   = i === todayDow
 
-  for (const line of raw.split('\n')) {
-    const cmd = line.trim()
-      .replace(/^: \d+:\d+;/, '')  // extended history timestamps
-      .replace(/^\$ /, '')          // prompt prefixes
-      .trim()
-    if (!cmd || cmd.startsWith('#')) continue
-    total++
+    let bar: string
+    if (isFuture || count === 0) {
+      bar = `${DIM}░${RESET}`
+    } else {
+      const barLen = Math.max(1, Math.round((count / maxVal) * MAX_BARS))
+      bar = `${ACCENT}${'▌'.repeat(barLen)}${RESET}`
+    }
 
-    if (cmd.startsWith('git ') || cmd === 'git') {
-      gitCount++
-      const verb = cmd.split(/\s+/)[1] ?? 'other'
-      gitVerbs[verb] = (gitVerbs[verb] ?? 0) + 1
-    } else if (/^(npm|yarn|pnpm|bun|pip|cargo|brew)\b/.test(cmd)) npmCount++
-    else if (/^(mkdir|touch|cp|mv|rm|ls|find)\b/.test(cmd)) fileCount++
-    else if (/^(node|npx|ts-node|tsx|deno)\b/.test(cmd)) nodeCount++
-    else if (/^(build|deploy|vercel|netlify)\b/.test(cmd)) buildCount++
+    const marker = isToday ? `  ${DIM}←${RESET}` : ''
+    console.log(`  ${DIM}${labels[i]}${RESET}  ${bar}${marker}`)
   }
-
-  const t = Math.max(total, 1)
-  let name = 'fresh start', glyph = '✦'
-  if      (total < 50)                  { name = 'fresh start';     glyph = '✦' }
-  else if (gitCount / t > 0.3)          { name = 'git witch';       glyph = '⬡' }
-  else if (npmCount / t > 0.25)         { name = 'package goblin';  glyph = '⬡' }
-  else if (fileCount / t > 0.25)        { name = 'file architect';  glyph = '⬜' }
-  else if (buildCount / t > 0.15)       { name = 'builder';         glyph = '◈' }
-  else if (nodeCount / t > 0.2)         { name = 'runner';          glyph = '▷' }
-  else                                  { name = 'git witch';       glyph = '⬡' }
-
-  // Verb-derived sentence (only meaningful if git witch)
-  const status = gitVerbs['status'] ?? 0
-  const commit = gitVerbs['commit'] ?? 0
-  const push   = gitVerbs['push']   ?? 0
-  const stash  = gitVerbs['stash']  ?? 0
-  const rebase = (gitVerbs['rebase'] ?? 0) + (gitVerbs['cherry-pick'] ?? 0)
-  const pull   = (gitVerbs['merge']  ?? 0) + (gitVerbs['pull'] ?? 0)
-
-  let verbSentence = ''
-  if (name === 'git witch') {
-    if (status > commit && status > push)      verbSentence = 'you check before you move.'
-    else if (commit + push > status)           verbSentence = 'regular cadence. you ship.'
-    else if (stash > 5)                        verbSentence = 'always mid-something.'
-    else if (rebase > pull && rebase > push)   verbSentence = 'you keep history clean.'
-    else if (pull > push)                      verbSentence = 'collaborative flow.'
-    else                                       verbSentence = 'git is your home base.'
-  }
-
-  return { name, glyph, verbSentence }
 }
 
 // ── open tasks ────────────────────────────────────────────────────────────────
@@ -388,9 +369,6 @@ function getTodaySignal(now: Date): string {
 // ── render ────────────────────────────────────────────────────────────────────
 
 export async function specialReport(): Promise<void> {
-  const HOME    = os.homedir()
-  const CURSORZ = path.join(HOME, 'cursorz')
-
   const now      = new Date()
   const phase    = getMoonPhase(now)
   const symbol   = getMoonPhaseSymbol(phase)
@@ -399,11 +377,12 @@ export async function specialReport(): Promise<void> {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
   }).toLowerCase()
 
-  const repos       = findGitRepos(CURSORZ)
+  const reposDir    = await getReposDir()
+  const repos       = reposDir ? findGitRepos(reposDir) : []
   const git         = getGitStats(repos)
-  const arch        = getArchetype()
-  const openTasks   = getOpenTasks(CURSORZ)
+  const openTasks   = reposDir ? getOpenTasks(reposDir) : []
   const todaySignal = getTodaySignal(now)
+  const todayDow    = (now.getDay() + 6) % 7
 
   console.log()
   console.log(hr())
@@ -415,25 +394,26 @@ export async function specialReport(): Promise<void> {
   console.log()
 
   // this week
-  console.log(`  ${DIM}this week${RESET}`)
-  console.log()
-  if (git.commits > 0) {
-    const statParts = [`${BOLD}${git.commits}${RESET} commits`]
-    if (git.streak > 0) statParts.push(`${git.streak}-day streak`)
-    console.log(`  ${statParts.join(`  ${DIM}·${RESET}  `)}`)
-    const supportParts: string[] = [git.fileLabel]
-    if (git.activeProjects.length > 0) supportParts.push(git.activeProjects.join(', '))
-    if (git.timingSentence) supportParts.push(git.timingSentence)
-    console.log(`  ${DIM}${supportParts.join('  ·  ')}${RESET}`)
+  if (reposDir) {
+    console.log(`  ${DIM}this week${RESET}`)
+    console.log()
+    if (git.commits > 0) {
+      const statParts = [`${BOLD}${git.commits}${RESET} commits`]
+      if (git.streak > 0) statParts.push(`${git.streak}-day streak`)
+      console.log(`  ${statParts.join(`  ${DIM}·${RESET}  `)}`)
+      const supportParts: string[] = [git.fileLabel]
+      if (git.activeProjects.length > 0) supportParts.push(git.activeProjects.join(', '))
+      if (git.timingSentence) supportParts.push(git.timingSentence)
+      console.log(`  ${DIM}${supportParts.join('  ·  ')}${RESET}`)
+      console.log()
+    }
+    renderBars(git.commitsByDay, todayDow)
+    console.log()
   } else {
-    console.log(`  ${DIM}no commits this week${RESET}`)
+    console.log(`  ${ACCENT}·${RESET}  run clarissa setup and enter your projects folder`)
+    console.log(`  ${DIM}   any git repos inside it will track commits, streak, and open tasks${RESET}`)
+    console.log()
   }
-  console.log()
-
-  // archetype
-  console.log(`  ${DIM}${arch.name}${RESET}`)
-  if (arch.verbSentence) console.log(`  ${arch.verbSentence}`)
-  console.log()
 
   // open tasks
   if (openTasks.length > 0) {
@@ -449,8 +429,10 @@ export async function specialReport(): Promise<void> {
     console.log()
   }
 
-  // today — no label, just the signal
-  console.log(`  ${ACCENT}·${RESET}  ${todaySignal}`)
+  // tip
+  console.log(`  ${DIM}┌─────┐${RESET}`)
+  console.log(`  ${DIM}│${RESET} tip ${DIM}│${RESET}  ${todaySignal}`)
+  console.log(`  ${DIM}└─────┘${RESET}`)
   console.log()
   console.log(hr())
   console.log()
