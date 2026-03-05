@@ -16,6 +16,7 @@ import { daily } from './commands/daily.js'
 import { advice } from './commands/advice.js'
 import { crafts } from './commands/crafts.js'
 import { jam } from './commands/jam.js'
+import { specialReport } from './commands/special-report.js'
 
 const program = new Command()
 
@@ -156,6 +157,16 @@ program
   .description('make a new shell command')
   .action(async () => {
     await jam().catch(err => {
+      console.error(`\n  error: ${err.message}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('special-report')
+  .description('your stats: git, claude, open tasks')
+  .action(async () => {
+    await specialReport().catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })
