@@ -11,4 +11,4 @@ clarissa
 
 ---
 
-yes, there is another tool called clarissa — made by a guy named cameron — and it is a much more serious, much better terminal agent. i found out after naming this one. i don't care. this one is for very unserious people.
+yes, there is another tool called clarissa out there — a much more serious, much better terminal agent. i found out after naming this one. i don't care. this one is for very unserious people.
