@@ -9,5 +9,7 @@ archive/
 # session docs — private
 .claude/
 RESUMESESSION_HANDOFF.md
-HANDOFF.md
+RESUME_HANDOFF*.md
+HANDOFF*.md
 NOTES.md
+NOTES*.md
