@@ -1,8 +1,8 @@
 # hey-clarissa
 
-> make your terminal feel like yours.
+add ASCII art to your terminal. get your git stats. get a tip to get your commits up. check your horoscope. just a silly little pit stop for designers who somehow ended up spinning dev environments from a terminal and want it to feel slightly more like theirs.
 
-Clarissa is a terminal companion for designers who code. A pit stop — somewhere to check in before a dev session, get a git summary, pull a horoscope, or just add something a little analog to a day spent in the terminal.
+if that's your thing.
 
 ```bash
 npm install -g hey-clarissa
@@ -11,4 +11,4 @@ clarissa
 
 ---
 
-*clarissa is always learning how to do new things to impress terminal users.*
+yes, there is another tool called clarissa out there — a much better terminal agent. i found out after naming this one. i don't care. this one is for very unserious people.

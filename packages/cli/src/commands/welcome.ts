@@ -24,6 +24,28 @@ function pal(code: number | null, s: string): string {
   return code === null ? s : `\x1b[38;5;${code}m${s}${RESET}`
 }
 
+// Curated two-tone color pairs [full █, halfdots ░▀▄]
+const HEADER_SCHEMES: [number, number][] = [
+  [183, 213],  // lavender + pink
+  [87,  227],  // teal + yellow
+  [216, 158],  // coral + mint
+  [141, 51 ],  // purple + cyan
+  [214, 39 ],  // orange + blue
+  [213, 220],  // pink + gold
+  [118, 213],  // green + pink
+  [75,  208],  // sky + orange
+  [122, 141],  // mint + purple
+  [51,  216],  // cyan + coral
+]
+
+function renderTwoTone(line: string, primary: number, accent: number): string {
+  return line.split('').map(ch => {
+    if (ch === '█') return `\x1b[38;5;${primary}m${ch}${RESET}`
+    if ('░▒▓▀▄▌▐'.includes(ch)) return `\x1b[38;5;${accent}m${ch}${RESET}`
+    return ch
+  }).join('')
+}
+
 // ── lucky numbers — seeded by date, same all day, resets at midnight ──────────
 
 function dateHash(str: string): number {
@@ -189,9 +211,10 @@ export async function welcome(): Promise<void> {
   const now     = new Date()
 
   // Header
-  const header = figlet.textSync('clarissa', { font: 'Small' })
+  const header = figlet.textSync('clarissa', { font: 'Pagga' })
+  const [hPrimary, hAccent] = HEADER_SCHEMES[Math.floor(Math.random() * HEADER_SCHEMES.length)]
   console.log()
-  console.log(pal(palette.color, header.split('\n').map(l => `  ${l}`).join('\n')))
+  console.log(header.split('\n').map(l => `  ${renderTwoTone(l, hPrimary, hAccent)}`).join('\n'))
 
   // Greeting
   if (chart?.userName) {
@@ -208,13 +231,6 @@ export async function welcome(): Promise<void> {
   console.log()
   console.log(`  ${pal(palette.color, symbol)}  ${bold(name)}`)
   console.log(`     ${dim(guidance)}`)
-
-  // Daily message (chart-aware)
-  if (chart) {
-    const message = getDailyMessage(chart, now)
-    console.log()
-    console.log(`     ${message}`)
-  }
 
   // Date + weather
   const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
