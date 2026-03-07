@@ -1,12 +1,14 @@
-# Clarissa
+# clarissa
 
 > make your terminal feel like yours.
 
-Clarissa is a terminal companion for designers who code. She's a pit stop — somewhere to check in before a dev session, get a git summary, pull a horoscope, or just add something a little analog to a day spent in the terminal.
+clarissa is a terminal companion for designers who code. somewhere to check in before jumping into code, to get a git summary, or maybe something dumber. the figlet based ascii art you create in clarissa can be used in terminal based ui design. 
+
+named after clarissa darling - from ohio, into computers, explained it all.  
 
 ---
 
-## Install
+## install
 
 ```bash
 npm install -g hey-clarissa
@@ -18,27 +20,27 @@ clarissa
 
 ---
 
-## What's here
+## what's here
 
-| Path | What it is |
+| path | what it is |
 |---|---|
-| `clarissa.sh` | Full bash CLI — interactive menu, astrology, fonts |
-| `calculate.sh` | Meeus astronomical algorithms (Julian dates, planet positions) |
-| `setup.sh` | Setup wizard |
+| `clarissa.sh` | full bash CLI — interactive menu, astrology, fonts |
+| `calculate.sh` | meeus astronomical algorithms (julian dates, planet positions) |
+| `setup.sh` | setup wizard - connect your info |
 | `install.sh` | curl installer |
 | `fonts/` | 6 ASCII art fonts |
-| `pipeline/` | Pixel art → terminal icon converter |
-| `packages/core` | Shared TypeScript: pixel conversion, palette system |
+| `pipeline/` | pixel art → terminal icon converter |
+| `packages/core` | shared typeScript: pixel conversion, palette system |
 | `packages/cli` | npm package (`hey-clarissa`) |
-| `packages/figma-plugin` | Figma plugin (stub — not yet built) |
+| `packages/figma-plugin` | figma plugin (stub — not yet built) |
 
 ---
 
-## Commands
+## commands
 
-Run `clarissa` with no arguments to see the welcome screen, or use a command:
+run `clarissa` with no arguments to see the welcome screen, or use a command:
 
-| Command | What it does |
+| command | what it does |
 |---|---|
 | `clarissa` | welcome screen |
 | `clarissa setup` | set up your natal chart |
@@ -56,6 +58,3 @@ Run `clarissa` with no arguments to see the welcome screen, or use a command:
 | `clarissa crafts` | pixel art, fonts, and shell command tools |
 | `clarissa jam` | make a new shell command |
 
----
-
-*clarissa is always learning how to do new things to impress terminal users.*
