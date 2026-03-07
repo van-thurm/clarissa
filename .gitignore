@@ -8,6 +8,8 @@ archive/
 
 # session docs — private
 .claude/
+.cursor/
+AGENTS.md
 RESUMESESSION_HANDOFF.md
 RESUME_HANDOFF*.md
 HANDOFF*.md
