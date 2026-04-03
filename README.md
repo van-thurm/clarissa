@@ -48,7 +48,7 @@ run `clarissa` with no arguments to see the welcome screen, or use a command:
 | `clarissa me` | big three interpretations |
 | `clarissa daily` | daily reading: moon phase + guidance |
 | `clarissa advice <question>` | moon-aware advice for today |
-| `clarissa special-report` | your stats: git, claude, open tasks |
+| `clarissa special-report` | your stats: git, open tasks, daily tip |
 | `clarissa add <file>` | convert pixel art, save as icon |
 | `clarissa preview <name>` | print icon to terminal |
 | `clarissa list` | show all saved icons |

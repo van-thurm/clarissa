@@ -165,7 +165,7 @@ program
 
 program
   .command('special-report')
-  .description('your stats: git, claude, open tasks')
+  .description('your stats: git, open tasks, daily tip')
   .action(async () => {
     await specialReport().catch(err => {
       console.error(`\n  error: ${err.message}\n`)

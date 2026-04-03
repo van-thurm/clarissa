@@ -1,14 +1,10 @@
 # hey-clarissa
 
-add ASCII art to your terminal. get your git stats. get a tip to get your commits up. check your horoscope. just a silly little pit stop for designers who somehow ended up spinning dev environments from a terminal and want it to feel slightly more like theirs.
-
-if that's your thing.
+clarissa puts ASCII art, git stats, a daily tip, and your horoscope in your terminal. just a silly little pit stop for product designers who somehow ended up spinning dev environments from a command line and want it to feel slightly more like theirs.
 
 ```bash
 npm install -g hey-clarissa
 clarissa
 ```
 
----
-
-yes, there is another tool called clarissa out there — a much better terminal agent. i found out after naming this one. i don't care. this one is for very unserious people.
+there is another tool called clarissa, a real terminal agent worth checking out. this one is more of a handmade art project.
