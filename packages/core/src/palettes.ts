@@ -4,71 +4,61 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   mono: {
     name: 'mono',
     label: 'Mono',
-    vibe: 'classic, default',
-    color: null,
+    vibe: 'classic',
+    fill: null,
+    accent: 245,   // mid gray
+    dim: 240,       // dark gray
   },
-  ghost: {
-    name: 'ghost',
-    label: 'Ghost',
-    vibe: 'soft and warm',
-    color: 252,  // #d0d0d0 — muted warm gray
+  ember: {
+    name: 'ember',
+    label: 'Ember',
+    vibe: 'warm glow',
+    fill: 208,      // warm orange
+    accent: 216,    // peach
+    dim: 95,        // muted brown
   },
-  neon: {
-    name: 'neon',
-    label: 'Neon',
-    vibe: 'punchy, high contrast',
-    color: 51,   // #00ffff — electric cyan
+  arctic: {
+    name: 'arctic',
+    label: 'Arctic',
+    vibe: 'clean and cold',
+    fill: 117,      // ice blue
+    accent: 75,     // steel blue
+    dim: 60,        // slate
   },
   sakura: {
     name: 'sakura',
     label: 'Sakura',
     vibe: 'delicate',
-    color: 218,  // #ffafd7 — sakura pink
+    fill: 218,      // sakura pink
+    accent: 175,    // dusty rose
+    dim: 95,        // muted mauve
   },
-  forest: {
-    name: 'forest',
-    label: 'Forest',
-    vibe: 'grounded',
-    color: 28,   // #008700 — deep forest green
+  terminal: {
+    name: 'terminal',
+    label: 'Terminal',
+    vibe: 'hacker',
+    fill: 46,       // bright green
+    accent: 34,     // forest green
+    dim: 22,        // dark green
   },
   sunset: {
     name: 'sunset',
     label: 'Sunset',
-    vibe: 'warm and bold',
-    color: 208,  // #ff8700 — warm orange
+    vibe: 'golden hour',
+    fill: 220,      // gold
+    accent: 209,    // coral
+    dim: 130,       // burnt sienna
   },
-  electric: {
-    name: 'electric',
-    label: 'Electric',
-    vibe: 'loud',
-    color: 199,  // #ff00af — bright magenta
-  },
-  ocean: {
-    name: 'ocean',
-    label: 'Ocean',
-    vibe: 'deep and calm',
-    color: 33,   // #0087ff — deep blue
-  },
-  candy: {
-    name: 'candy',
-    label: 'Candy',
-    vibe: 'sweet and hot',
-    color: 213,  // #ff87ff — hot pink
-  },
-  gold: {
-    name: 'gold',
-    label: 'Gold',
-    vibe: 'rich',
-    color: 220,  // #ffd700 — warm gold
-  },
-  lavender: {
-    name: 'lavender',
-    label: 'Lavender',
-    vibe: 'dreamy',
-    color: 141,  // #af87ff — soft purple
+  ultraviolet: {
+    name: 'ultraviolet',
+    label: 'Ultraviolet',
+    vibe: 'electric night',
+    fill: 135,      // vivid purple
+    accent: 199,    // hot magenta
+    dim: 61,        // muted indigo
   },
 }
 
-export const DEFAULT_PALETTE: PaletteKey = 'mono'
+export const DEFAULT_PALETTE: PaletteKey = 'ember'
 
 export const PALETTE_KEYS = Object.keys(PALETTES) as PaletteKey[]

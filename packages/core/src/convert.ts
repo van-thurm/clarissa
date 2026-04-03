@@ -1,6 +1,5 @@
-// Exact port of pixel_to_cli.py
-// Algorithm: NEAREST resize (caller's responsibility), composite onto white
-// (caller's responsibility), brightness threshold 128 → filled or empty.
+// Pixel-to-terminal conversion with Floyd-Steinberg dithering.
+// Caller resizes and composites onto white before passing RGB data here.
 
 const FILLED = '\u2588\u2588'  // ██  U+2588 FULL BLOCK × 2
 const EMPTY = '  '             // 2 spaces — correct aspect ratio in monospace fonts
@@ -38,20 +37,32 @@ export function resizeRows(rows: string[], fromSize: number, toSize: number): st
 }
 
 /**
- * Convert raw RGB pixel data to icon rows.
+ * Convert raw RGB pixel data to icon rows using Floyd-Steinberg dithering.
  * Input: flat Uint8Array of RGB bytes (3 bytes per pixel, no alpha),
  * already resized to size×size and composited onto white.
  * Output: array of strings, one per row.
  */
 export function pixelsToRows(rgb: Uint8Array, size: number): string[] {
-  const rows: string[] = []
+  const buf = new Float64Array(size * size)
+  for (let i = 0; i < size * size; i++) {
+    buf[i] = (rgb[i * 3] + rgb[i * 3 + 1] + rgb[i * 3 + 2]) / 3
+  }
 
+  const rows: string[] = []
   for (let y = 0; y < size; y++) {
     let row = ''
     for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 3
-      const brightness = (rgb[i] + rgb[i + 1] + rgb[i + 2]) / 3
-      row += brightness < THRESHOLD ? FILLED : EMPTY
+      const idx = y * size + x
+      const old = buf[idx]
+      const filled = old < THRESHOLD
+      const err = old - (filled ? 0 : 255)
+
+      row += filled ? FILLED : EMPTY
+
+      if (x + 1 < size)                    buf[idx + 1]        += err * 7 / 16
+      if (y + 1 < size && x > 0)           buf[idx + size - 1] += err * 3 / 16
+      if (y + 1 < size)                    buf[idx + size]     += err * 5 / 16
+      if (y + 1 < size && x + 1 < size)    buf[idx + size + 1] += err * 1 / 16
     }
     rows.push(row)
   }

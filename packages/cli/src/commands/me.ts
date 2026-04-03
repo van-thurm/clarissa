@@ -1,16 +1,14 @@
 import { getChart } from '../state.js'
 import { getSign, getSunCore, getMoonCore, getRisingCore } from '../astro/signs.js'
 
-const RESET = '\x1b[0m'
-const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
-const WARM = '\x1b[38;5;180m'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 
+let DIM = '', ACCENT = ''
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
-function section(s: string): string { return `  ${WARM}▸${RESET} ${DIM}${s}${RESET}` }
+function section(s: string): string { return `  ${ACCENT}▸${RESET} ${DIM}${s}${RESET}` }
 
 export async function me(): Promise<void> {
+  const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const data = await getChart()
   if (!data) {
     console.log(`\n  ${ACCENT}no chart found.${RESET} run ${BOLD}clarissa setup${RESET} to get started.\n`)

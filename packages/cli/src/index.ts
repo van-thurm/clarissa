@@ -41,6 +41,6 @@ export function renderText(
   const rendered = figlet.textSync(text, { font: font as any })
   if (!options?.palette) return rendered
   const palette = PALETTES[options.palette]
-  if (palette.color === null) return rendered
-  return `\x1b[38;5;${palette.color}m${rendered}\x1b[0m`
+  if (palette.fill === null) return rendered
+  return `\x1b[38;5;${palette.fill}m${rendered}\x1b[0m`
 }

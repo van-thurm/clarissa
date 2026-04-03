@@ -41,9 +41,9 @@ export const FONT_CATEGORIES: Record<string, string[]> = {
 // Flat list derived from categories — preserves category order
 export const FEATURED_FONTS: string[] = Object.values(FONT_CATEGORIES).flat()
 
-const RESET = '\x1b[0m'
-const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'
+import { loadTheme, RESET, BOLD } from '../theme.js'
+
+let DIM = ''
 
 function applyColor(code: number | null, text: string): string {
   if (code === null) return text
@@ -71,6 +71,7 @@ function scaleText(rendered: string, factor: number): string {
 }
 
 export async function fonts(name?: string, text?: string, all?: boolean, scale?: number): Promise<void> {
+  const t = await loadTheme(); DIM = t.DIM
   const activePalette = await getActivePalette()
   const palette = PALETTES[activePalette]
   const scaleFactor = scale && scale > 1 ? Math.round(scale) : 1
@@ -90,7 +91,7 @@ export async function fonts(name?: string, text?: string, all?: boolean, scale?:
       console.log()
       console.log(`  ${BOLD}${fontName}${RESET}`)
       const indented = rendered.split('\n').map(l => `  ${l}`).join('\n')
-      console.log(applyColor(palette.color, indented))
+      console.log(applyColor(palette.fill, indented))
     }
 
     const skipped = allFonts.length - renderedCount
@@ -114,7 +115,7 @@ export async function fonts(name?: string, text?: string, all?: boolean, scale?:
       if (match) {
         const r = scaleText(renderFont(match, sample)!, scaleFactor)
         console.log()
-        console.log(applyColor(palette.color, r))
+        console.log(applyColor(palette.fill, r))
         console.log(`\n  ${DIM}${match}${scaleFactor > 1 ? `  ·  scale ${scaleFactor}x` : ''}${RESET}\n`)
       } else {
         throw new Error(`font not found: ${name}\n  run: clarissa fonts  to see available fonts`)
@@ -123,7 +124,7 @@ export async function fonts(name?: string, text?: string, all?: boolean, scale?:
     }
     const rendered = scaleText(raw, scaleFactor)
     console.log()
-    console.log(applyColor(palette.color, rendered))
+    console.log(applyColor(palette.fill, rendered))
     console.log(`\n  ${DIM}${name}${scaleFactor > 1 ? `  ·  scale ${scaleFactor}x` : ''}${RESET}\n`)
     return
   }
@@ -150,7 +151,7 @@ export async function fonts(name?: string, text?: string, all?: boolean, scale?:
       console.log()
       console.log(`  ${BOLD}${fontName}${RESET}`)
       const indented = rendered.split('\n').map(l => `  ${l}`).join('\n')
-      console.log(applyColor(palette.color, indented))
+      console.log(applyColor(palette.fill, indented))
     }
   }
 

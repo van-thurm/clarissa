@@ -1,9 +1,10 @@
 import figlet from 'figlet'
 import * as readline from 'readline/promises'
 import fs from 'fs/promises'
-import os from 'os'
-import { PALETTES } from '@clarissa/core'
-import { getActivePalette, getChart, getGoCommand, getLocation, setGoCommand } from '../state.js'
+import { PALETTES, renderIcon } from '@clarissa/core'
+import { CLARISSA_DIR, ZSHRC } from '../paths.js'
+import { getActivePalette, getChart, getGoCommand, getLocation, setGoCommand, getWelcomeArt } from '../state.js'
+import { loadIcon } from '../store.js'
 import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol, getMoonGuidance } from '../astro/moon.js'
 import { getDailyMessage } from '../astro/chart.js'
 import { fetchWeather } from './daily.js'
@@ -12,11 +13,9 @@ import { advice } from './advice.js'
 import { crafts } from './crafts.js'
 import { setup } from './setup.js'
 import { specialReport } from './special-report.js'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 
-const RESET = '\x1b[0m'
-const DIM   = '\x1b[2m'
-const BOLD  = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
+let DIM = '', ACCENT = ''
 
 function dim(s: string):  string { return `${DIM}${s}${RESET}` }
 function bold(s: string): string { return `${BOLD}${s}${RESET}` }
@@ -105,10 +104,7 @@ async function waitForMenu(): Promise<string | null> {
 
 // ── quit + go ─────────────────────────────────────────────────────────────────
 
-const HOME         = os.homedir()
-const CLARISSA_DIR = `${HOME}/.clarissa`
-const GO_FILE      = `${CLARISSA_DIR}/.go`
-const ZSHRC        = `${HOME}/.zshrc`
+const GO_FILE = `${CLARISSA_DIR}/.go`
 
 async function ensureGoWrapper(): Promise<boolean> {
   const mark = '# clarissa quit+go'
@@ -200,15 +196,27 @@ async function handleChoice(choice: string): Promise<void> {
 const HR = dim('─'.repeat(48))
 
 export async function welcome(): Promise<void> {
-  const [activePalette, chart, goCommand, location] = await Promise.all([
+  const [activePalette, chart, goCommand, location, welcomeArtName, t] = await Promise.all([
     getActivePalette(),
     getChart(),
     getGoCommand(),
     getLocation(),
+    getWelcomeArt(),
+    loadTheme(),
   ])
+  ACCENT = t.ACCENT; DIM = t.DIM
 
   const palette = PALETTES[activePalette]
   const now     = new Date()
+
+  // Welcome art (above header if set)
+  if (welcomeArtName) {
+    try {
+      const artIcon = await loadIcon(welcomeArtName)
+      console.log()
+      console.log(renderIcon(artIcon, activePalette).split('\n').map(l => `  ${l}`).join('\n'))
+    } catch { /* icon was deleted, silently skip */ }
+  }
 
   // Header
   const header = figlet.textSync('clarissa', { font: 'Pagga' })
@@ -229,7 +237,7 @@ export async function welcome(): Promise<void> {
   const guidance = getMoonGuidance(phase)
 
   console.log()
-  console.log(`  ${pal(palette.color, symbol)}  ${bold(name)}`)
+  console.log(`  ${pal(palette.fill, symbol)}  ${bold(name)}`)
   console.log(`     ${dim(guidance)}`)
 
   // Date + weather

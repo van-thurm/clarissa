@@ -5,10 +5,9 @@ import { setChart, setLocation, getLocation, getChart, getReposDir, setReposDir 
 import type { ChartData, PlanetData } from '../state.js'
 import { chart as showChart } from './chart.js'
 
-const RESET = '\x1b[0m'
-const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
+import { loadTheme, RESET, BOLD } from '../theme.js'
+
+let DIM = '', ACCENT = ''
 
 const SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo',
                'Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces']
@@ -65,6 +64,7 @@ async function askSign(rl: readline.Interface, label: string, fallback?: string)
 }
 
 export async function setup(): Promise<void> {
+  const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const [conf, savedChart, savedReposDir] = await Promise.all([readChartConf(), getChart(), getReposDir()])
   const hasExisting = !!savedChart || Object.keys(conf).length > 0
 

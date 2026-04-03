@@ -1,16 +1,18 @@
-export type PaletteKey = 'mono' | 'ghost' | 'neon' | 'sakura' | 'forest' | 'sunset' | 'electric' | 'ocean' | 'candy' | 'gold' | 'lavender'
+export type PaletteKey = 'mono' | 'ember' | 'arctic' | 'sakura' | 'terminal' | 'sunset' | 'ultraviolet'
 
 export interface Palette {
   name: PaletteKey
   label: string
   vibe: string
-  color: number | null  // ANSI 256-color code; null = mono (no color wrapping)
+  fill: number | null    // icon blocks — null = default terminal foreground
+  accent: number         // dividers, menu letters, active indicators
+  dim: number            // subtle text, hints, secondary info
 }
 
 export interface Icon {
   name: string
-  source: string  // original filename
-  size: number    // logical pixels (32 = 32×32)
-  rows: string[]  // palette-independent: ██ and spaces only
+  source: string  // original filename or 'built-in'
+  size: number    // logical pixels (32 = 32×32), 0 for character art
+  rows: string[]  // block art: ██ and spaces; character art: any printable chars
   created: string // ISO timestamp
 }

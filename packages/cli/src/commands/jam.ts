@@ -1,83 +1,22 @@
 import figlet from 'figlet'
 import * as readline from 'readline/promises'
 import fs from 'fs/promises'
-import path from 'path'
-import os from 'os'
 import { FONT_CATEGORIES } from './fonts.js'
 import { resizeRows } from '@clarissa/core'
-import { loadIcon } from '../store.js'
+import { loadIcon, listIcons } from '../store.js'
+import { SHELLS_FILE, bashEscape, isValidName, ensureShellsFile, ensureZshrcSourced } from '../paths.js'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 
-const RESET  = '\x1b[0m'
-const DIM    = '\x1b[2m'
-const BOLD   = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
-
+let DIM = '', ACCENT = ''
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
 
-const HOME         = os.homedir()
-const CLARISSA_DIR = path.join(HOME, '.clarissa')
-const SHELLS_FILE  = path.join(CLARISSA_DIR, 'shells.sh')
-const ICONS_DIR    = path.join(CLARISSA_DIR, 'icons')
-const ZSHRC        = path.join(HOME, '.zshrc')
-
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz' // used for icon list only (short lists)
-
-// ── file helpers ──────────────────────────────────────────────────────────────
-
-function isValidName(name: string): boolean {
-  return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)
-}
-
-async function ensureShellsFile(): Promise<void> {
-  await fs.mkdir(CLARISSA_DIR, { recursive: true })
-  try { await fs.access(SHELLS_FILE) }
-  catch { await fs.writeFile(SHELLS_FILE, '# clarissa jam — custom shell commands\n\n') }
-}
-
-// Returns true if we added the source line (first time only)
-async function ensureZshrcSourced(): Promise<boolean> {
-  const mark = 'source ~/.clarissa/shells.sh'
-  let content = ''
-  try { content = await fs.readFile(ZSHRC, 'utf-8') } catch { /* no .zshrc yet */ }
-  if (content.includes(mark)) return false
-  await fs.appendFile(ZSHRC, `\n# clarissa\n${mark}\n`)
-  return true
-}
-
-async function listIcons(): Promise<string[]> {
-  try {
-    const files = await fs.readdir(ICONS_DIR)
-    return files.filter(f => f.endsWith('.sh')).map(f => f.replace('.sh', '')).sort()
-  } catch { return [] }
-}
-
-async function readIconRows(name: string): Promise<string[]> {
-  const content = await fs.readFile(path.join(ICONS_DIR, `${name}.sh`), 'utf-8')
-  const rows: string[] = []
-  let inArray = false
-  for (const line of content.split('\n')) {
-    if (line.includes('=(')) { inArray = true; continue }
-    if (inArray && line.trim() === ')') break
-    if (inArray) {
-      const m = line.match(/^\s+"(.*)"/)
-      if (m) rows.push(m[1])
-    }
-  }
-  return rows
-}
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 function renderFontRows(font: string, text: string): string[] {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return figlet.textSync(text, { font: font as any }).split('\n')
   } catch { return [] }
-}
-
-// ── shell function generation ─────────────────────────────────────────────────
-
-// Escape content for use inside bash double-quoted strings
-function bashEscape(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$')
 }
 
 function buildFunction(
@@ -139,6 +78,7 @@ function buildFunction(
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export async function jam(): Promise<void> {
+  const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 
   console.log()
@@ -147,7 +87,6 @@ export async function jam(): Promise<void> {
   console.log(`  ${DIM}make a new shell command${RESET}`)
   console.log(hr())
   console.log()
-  console.log(`  ${DIM}ctrl+c to cancel${RESET}`)
   console.log()
 
   // ── name ──────────────────────────────────────────────────────────────────
@@ -257,12 +196,14 @@ export async function jam(): Promise<void> {
       const selectedIcon = await loadIcon(icons[iconIdx])
       iconRows = selectedIcon.rows
       const storedSize = selectedIcon.size
-      console.log()
-      console.log(`  resize?  ${DIM}s=16  m=32  l=64  (enter to keep ${storedSize}px)${RESET}`)
-      const sizePick = (await rl.question(`  → `)).trim().toLowerCase()
-      const sizeMap: Record<string, number> = { s: 16, m: 32, l: 64 }
-      const targetSize = sizeMap[sizePick] ?? storedSize
-      if (targetSize !== storedSize) iconRows = resizeRows(iconRows, storedSize, targetSize)
+      if (storedSize > 0) {
+        console.log()
+        console.log(`  resize?  ${DIM}s=16  m=32  l=64  (enter to keep ${storedSize}px)${RESET}`)
+        const sizePick = (await rl.question(`  → `)).trim().toLowerCase()
+        const sizeMap: Record<string, number> = { s: 16, m: 32, l: 64 }
+        const targetSize = sizeMap[sizePick] ?? storedSize
+        if (targetSize !== storedSize) iconRows = resizeRows(iconRows, storedSize, targetSize)
+      }
     }
     console.log()
   }

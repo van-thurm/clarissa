@@ -1,8 +1,12 @@
 import fs from 'fs/promises'
 import path from 'path'
 import type { Icon } from '@clarissa/core'
+import { GALLERY } from '@clarissa/core'
+import { ICONS_DIR, CLARISSA_DIR } from './paths.js'
 
-export const ICONS_DIR = path.join(process.env.HOME ?? '/tmp', '.clarissa', 'icons')
+export { ICONS_DIR }
+
+const SEED_MARKER = path.join(CLARISSA_DIR, '.gallery-seeded')
 
 export async function ensureIconsDir(): Promise<void> {
   await fs.mkdir(ICONS_DIR, { recursive: true })
@@ -37,15 +41,36 @@ export async function listIcons(): Promise<string[]> {
     .sort()
 }
 
-// Generates a bash array identical in format to pixel_to_cli.py output.
-// Sourceable directly: source ~/.clarissa/icons/rabbit.sh
+export async function seedGallery(): Promise<boolean> {
+  await ensureIconsDir()
+  try {
+    await fs.access(SEED_MARKER)
+    return false
+  } catch { /* not seeded yet */ }
+
+  for (const icon of GALLERY) {
+    const jsonPath = path.join(ICONS_DIR, `${icon.name}.json`)
+    try {
+      await fs.access(jsonPath)
+    } catch {
+      await saveIcon(icon)
+    }
+  }
+
+  await fs.writeFile(SEED_MARKER, new Date().toISOString())
+  return true
+}
+
 function toBashArray(icon: Icon): string {
   const varName = `ICON_${icon.name.toUpperCase().replace(/[-. ]/g, '_')}`
   const sep = '\u2500'.repeat(Math.max(1, 44 - icon.name.length))
+  const sizeNote = icon.size > 0
+    ? `${icon.size}\xd7${icon.size} logical px  \u2192  ${icon.size * 2} chars wide in terminal`
+    : `${icon.rows.length} rows character art`
   const lines = [
     `# \u2500\u2500 ${varName} ${sep}`,
     `# Source : ${icon.source}`,
-    `# Canvas : ${icon.size}\xd7${icon.size} logical px  \u2192  ${icon.size * 2} chars wide in terminal`,
+    `# Canvas : ${sizeNote}`,
     `# Display: printf "%s\\n" "\${${varName}[@]}"`,
     `${varName}=(`,
     ...icon.rows.map(row => `  "${row}"`),

@@ -3,10 +3,10 @@ import sharp from 'sharp'
 import { pixelsToRows, renderIcon } from '@clarissa/core'
 import type { Icon } from '@clarissa/core'
 import { saveIcon } from '../store.js'
-import { setActiveIcon, getActiveDir } from '../state.js'
+import { getActiveDir } from '../state.js'
 
-const DEFAULT_SIZE = 32
-const SIZE_PRESETS: Record<string, number> = { small: 16, medium: 32, large: 64 }
+const DEFAULT_SIZE = 8
+export const SIZE_PRESETS: Record<string, number> = { micro: 8, small: 16 }
 
 function resolveSize(s: string | number | undefined): number {
   if (s === undefined) return DEFAULT_SIZE
@@ -16,19 +16,17 @@ function resolveSize(s: string | number | undefined): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_SIZE
 }
 
-export async function add(filePath: string, options: { size?: string | number; name?: string } = {}): Promise<void> {
+export async function processAndSaveIcon(
+  filePath: string,
+  options: { size?: string | number; name?: string } = {}
+): Promise<Icon> {
   const size = resolveSize(options.size)
-
-  // If filePath is just a filename (no directory component), resolve against active dir
   const resolved = await resolveFilePath(filePath)
-
   const sourceName = path.basename(resolved)
   const iconName = options.name ?? deriveIconName(resolved)
 
-  // Load, resize (lanczos3 for quality at small sizes — nearest was blocky at 16px),
-  // and composite transparency onto white.
   const { data } = await sharp(resolved)
-    .resize(size, size, { kernel: sharp.kernel.lanczos3, fit: 'fill' })
+    .resize(size, size, { kernel: sharp.kernel.lanczos3, fit: 'contain', background: { r: 255, g: 255, b: 255 } })
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .raw()
     .toBuffer({ resolveWithObject: true })
@@ -44,12 +42,16 @@ export async function add(filePath: string, options: { size?: string | number; n
   }
 
   await saveIcon(icon)
-  await setActiveIcon(iconName)
+  return icon
+}
 
-  console.log(`\n  saved  ${iconName}`)
-  console.log(`  source ${sourceName}\n`)
+export async function add(filePath: string, options: { size?: string | number; name?: string } = {}): Promise<void> {
+  const icon = await processAndSaveIcon(filePath, options)
+
+  console.log(`\n  saved  ${icon.name}`)
+  console.log(`  source ${icon.source}\n`)
   console.log(renderIcon(icon))
-  console.log(`\n  clarissa preview ${iconName}\n`)
+  console.log(`\n  clarissa preview ${icon.name}\n`)
 }
 
 function deriveIconName(filePath: string): string {

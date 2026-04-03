@@ -2,8 +2,8 @@ import fs from 'fs/promises'
 import path from 'path'
 import type { PaletteKey } from '@clarissa/core'
 import { DEFAULT_PALETTE, PALETTE_KEYS } from '@clarissa/core'
+import { CLARISSA_DIR } from './paths.js'
 
-const CLARISSA_DIR = path.join(process.env.HOME ?? '/tmp', '.clarissa')
 const STATE_FILE = path.join(CLARISSA_DIR, 'state.json')
 
 export interface PlanetData {
@@ -31,12 +31,12 @@ export interface ChartData {
 
 interface State {
   palette: PaletteKey
-  icon?: string
   dir?: string
   chart?: ChartData
   location?: string
   goCommand?: string
   reposDir?: string
+  welcomeArt?: string
 }
 
 async function readState(): Promise<State> {
@@ -47,7 +47,7 @@ async function readState(): Promise<State> {
     const palette = parsed.palette && PALETTE_KEYS.includes(parsed.palette)
       ? parsed.palette
       : DEFAULT_PALETTE
-    return { palette, icon: parsed.icon, dir: parsed.dir, chart: parsed.chart, location: parsed.location, goCommand: parsed.goCommand, reposDir: parsed.reposDir }
+    return { palette, dir: parsed.dir, chart: parsed.chart, location: parsed.location, goCommand: parsed.goCommand, reposDir: parsed.reposDir, welcomeArt: parsed.welcomeArt }
   } catch {
     return { palette: DEFAULT_PALETTE }
   }
@@ -66,16 +66,6 @@ export async function getActivePalette(): Promise<PaletteKey> {
 export async function setActivePalette(palette: PaletteKey): Promise<void> {
   const state = await readState()
   await writeState({ ...state, palette })
-}
-
-export async function getActiveIcon(): Promise<string | undefined> {
-  const state = await readState()
-  return state.icon
-}
-
-export async function setActiveIcon(name: string): Promise<void> {
-  const state = await readState()
-  await writeState({ ...state, icon: name })
 }
 
 export async function getActiveDir(): Promise<string | undefined> {
@@ -126,4 +116,20 @@ export async function getReposDir(): Promise<string | undefined> {
 export async function setReposDir(dir: string): Promise<void> {
   const state = await readState()
   await writeState({ ...state, reposDir: dir })
+}
+
+export async function getWelcomeArt(): Promise<string | undefined> {
+  const state = await readState()
+  return state.welcomeArt
+}
+
+export async function setWelcomeArt(name: string): Promise<void> {
+  const state = await readState()
+  await writeState({ ...state, welcomeArt: name })
+}
+
+export async function clearWelcomeArt(): Promise<void> {
+  const state = await readState()
+  const { welcomeArt: _, ...rest } = state
+  await writeState(rest as State)
 }

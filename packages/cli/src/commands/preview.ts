@@ -18,7 +18,7 @@ export async function preview(name: string, options: { palette?: PaletteKey; siz
   const paletteKey = options.palette ?? await getActivePalette()
   const targetSize = resolveSize(options.size)
 
-  const displayIcon = targetSize && targetSize !== icon.size
+  const displayIcon = targetSize && icon.size > 0 && targetSize !== icon.size
     ? { ...icon, rows: resizeRows(icon.rows, icon.size, targetSize), size: targetSize }
     : icon
 

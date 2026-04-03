@@ -17,6 +17,7 @@ import { advice } from './commands/advice.js'
 import { crafts } from './commands/crafts.js'
 import { jam } from './commands/jam.js'
 import { specialReport } from './commands/special-report.js'
+import { seedGallery } from './store.js'
 
 const program = new Command()
 
@@ -29,7 +30,7 @@ program
   .command('add <file>')
   .description('convert pixel art, save as icon')
   .option('-n, --name <name>', 'icon name (default: filename)')
-  .option('-s, --size <size>', 'size: small (16), medium (32), large (64), or a pixel count')
+  .option('-s, --size <size>', 'size: micro (8), small (16), or a pixel count')
   .action(async (file: string, opts: { name?: string; size?: string }) => {
     await add(file, opts).catch(err => {
       console.error(`\n  error: ${err.message}\n`)
@@ -144,7 +145,7 @@ program
 
 program
   .command('crafts')
-  .description('pixel art, fonts, and shell command tools')
+  .description('art, fonts, and shell command tools')
   .action(async () => {
     await crafts().catch(err => {
       console.error(`\n  error: ${err.message}\n`)
@@ -171,6 +172,10 @@ program
       process.exit(1)
     })
   })
+
+program.hook('preAction', async () => {
+  await seedGallery()
+})
 
 // Show welcome screen when no subcommand is given
 program.action(async () => {

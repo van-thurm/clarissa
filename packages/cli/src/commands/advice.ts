@@ -2,12 +2,9 @@ import { getChart } from '../state.js'
 import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol, getMoonGuidance } from '../astro/moon.js'
 import { getSignFromDate } from '../astro/signs.js'
 import { getDailyMessage } from '../astro/chart.js'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 
-const RESET = '\x1b[0m'
-const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
-
+let DIM = '', ACCENT = ''
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
 
 const NOT_TODAY_PATTERNS = [
@@ -134,6 +131,7 @@ function pickResponse(question: string, phase: number, now: Date): string {
 }
 
 export async function advice(question: string): Promise<void> {
+  const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const data = await getChart()
   if (!data) {
     console.log(`\n  ${ACCENT}no chart found.${RESET} run ${BOLD}clarissa setup${RESET} to get started.\n`)

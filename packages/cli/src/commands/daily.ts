@@ -1,12 +1,9 @@
 import { getChart, getLocation } from '../state.js'
 import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol, getMoonGuidance } from '../astro/moon.js'
 import { getDailyMessage, getSeasonalTransit } from '../astro/chart.js'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 
-const RESET  = '\x1b[0m'
-const DIM    = '\x1b[2m'
-const BOLD   = '\x1b[1m'
-const ACCENT = '\x1b[38;5;216m'
-
+let DIM = '', ACCENT = ''
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
 
 export async function fetchWeather(location: string): Promise<string | null> {
@@ -28,6 +25,7 @@ export async function fetchWeather(location: string): Promise<string | null> {
 }
 
 export async function daily(): Promise<void> {
+  const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const [data, location] = await Promise.all([getChart(), getLocation()])
 
   const now      = new Date()
