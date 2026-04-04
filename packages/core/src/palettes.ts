@@ -3,7 +3,7 @@ import type { Palette, PaletteKey } from './types.js'
 export const PALETTES: Record<PaletteKey, Palette> = {
   mono: {
     name: 'mono',
-    label: 'Mono',
+    label: 'mono',
     vibe: 'classic',
     fill: null,
     accent: 245,   // mid gray
@@ -11,7 +11,7 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   ember: {
     name: 'ember',
-    label: 'Ember',
+    label: 'ember',
     vibe: 'warm glow',
     fill: 208,      // warm orange
     accent: 216,    // peach
@@ -19,7 +19,7 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   arctic: {
     name: 'arctic',
-    label: 'Arctic',
+    label: 'arctic',
     vibe: 'clean and cold',
     fill: 117,      // ice blue
     accent: 75,     // steel blue
@@ -27,7 +27,7 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   sakura: {
     name: 'sakura',
-    label: 'Sakura',
+    label: 'sakura',
     vibe: 'delicate',
     fill: 218,      // sakura pink
     accent: 175,    // dusty rose
@@ -35,7 +35,7 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   terminal: {
     name: 'terminal',
-    label: 'Terminal',
+    label: 'terminal',
     vibe: 'hacker',
     fill: 46,       // bright green
     accent: 34,     // forest green
@@ -43,7 +43,7 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   sunset: {
     name: 'sunset',
-    label: 'Sunset',
+    label: 'sunset',
     vibe: 'golden hour',
     fill: 220,      // gold
     accent: 209,    // coral
@@ -51,11 +51,27 @@ export const PALETTES: Record<PaletteKey, Palette> = {
   },
   ultraviolet: {
     name: 'ultraviolet',
-    label: 'Ultraviolet',
+    label: 'ultraviolet',
     vibe: 'electric night',
     fill: 135,      // vivid purple
     accent: 199,    // hot magenta
     dim: 61,        // muted indigo
+  },
+  nessy: {
+    name: 'nessy',
+    label: 'nessy',
+    vibe: 'vermillion',
+    fill: 166,      // deep orange-red (#d75f00, closest to --spot #D95030)
+    accent: 167,    // warm rose (#d75f5f)
+    dim: 243,       // neutral gray
+  },
+  random: {
+    name: 'random',
+    label: 'random',
+    vibe: 'rainbow',
+    fill: null,     // triggers random header color pairs
+    accent: 245,    // mid gray
+    dim: 240,       // dark gray
   },
 }
 

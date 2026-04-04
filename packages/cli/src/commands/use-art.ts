@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 import { renderIcon } from '@clarissa/core'
 import type { Icon } from '@clarissa/core'
 import { getActivePalette, getWelcomeArt, setWelcomeArt, clearWelcomeArt } from '../state.js'
-import { SHELLS_FILE, ZSHRC, bashEscape, ensureShellsFile, ensureZshrcSourced } from '../paths.js'
+import { SHELLS_FILE, ZSHRC, bashEscape, ensureShellsFile, ensureZshrcSourced, ICONS_DIR } from '../paths.js'
 import { loadTheme, RESET, BOLD } from '../theme.js'
 
 let DIM = '', ACCENT = ''
@@ -28,6 +28,7 @@ export async function useArt(icon: Icon): Promise<boolean> {
   console.log(`  ${ACCENT}a${RESET}  set as welcome art     ${DIM}shows when you open clarissa${RESET}`)
   console.log(`  ${ACCENT}b${RESET}  add to a jam           ${DIM}prints when you run a command${RESET}`)
   console.log(`  ${ACCENT}c${RESET}  add to terminal startup ${DIM}prints every new session${RESET}`)
+  console.log(`  ${ACCENT}d${RESET}  discard                ${DIM}delete without saving${RESET}`)
   console.log()
   console.log(`  ${DIM}enter  just keep it saved${RESET}`)
   console.log()
@@ -49,6 +50,15 @@ export async function useArt(icon: Icon): Promise<boolean> {
     }
     case 'c': {
       return await addToStartup(icon)
+    }
+    case 'd': {
+      const path = await import('path')
+      await fs.unlink(path.join(ICONS_DIR, `${icon.name}.json`)).catch(() => {})
+      await fs.unlink(path.join(ICONS_DIR, `${icon.name}.sh`)).catch(() => {})
+      console.log()
+      console.log(`  ${DIM}discarded ${icon.name}${RESET}`)
+      console.log()
+      return false
     }
     default:
       return false
@@ -91,7 +101,7 @@ async function addArtToJam(icon: Icon): Promise<boolean> {
   if (patched) {
     console.log(`  ${DIM}added to .zshrc — available in new terminal sessions${RESET}`)
   } else {
-    console.log(`  ${DIM}to activate now:  source ~/.clarissa/shells.sh${RESET}`)
+    console.log(`  ${DIM}open clarissa in a new window to see change${RESET}`)
   }
   console.log()
   return true
@@ -303,7 +313,7 @@ async function addFontToJam(renderedRows: string[]): Promise<boolean> {
   if (patched) {
     console.log(`  ${DIM}added to .zshrc — available in new terminal sessions${RESET}`)
   } else {
-    console.log(`  ${DIM}to activate now:  source ~/.clarissa/shells.sh${RESET}`)
+    console.log(`  ${DIM}open clarissa in a new window to see change${RESET}`)
   }
   console.log()
   return true

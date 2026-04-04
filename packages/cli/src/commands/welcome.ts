@@ -74,19 +74,13 @@ function getDailyLucky(date: Date = new Date()): number[] {
 async function waitForMenu(): Promise<string | null> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   console.log(`  ${DIM}─────────────────────────────────────${RESET}`)
-  console.log(`  ${ACCENT}m${RESET} ${DIM}menu${RESET}  ${DIM}·${RESET}  ${ACCENT}q${RESET} ${DIM}quit${RESET}`)
+  console.log(`  ${DIM}q  back${RESET}`)
   console.log()
 
   while (true) {
     const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
 
-    if (pick === 'q' || pick === 'quit') {
-      rl.close()
-      process.exit(0)
-    }
-
-    // m or enter → back to menu
-    if (!pick || pick === 'm' || pick === 'menu') {
+    if (!pick || pick === 'q' || pick === 'back') {
       rl.close()
       return null
     }
@@ -97,8 +91,7 @@ async function waitForMenu(): Promise<string | null> {
       return pick
     }
 
-    // Unrecognized input
-    console.log(`  ${DIM}press ${ACCENT}m${DIM} for menu or ${ACCENT}q${DIM} to quit${RESET}`)
+    console.log(`  ${DIM}press q to go back${RESET}`)
   }
 }
 
@@ -218,11 +211,18 @@ export async function welcome(): Promise<void> {
     } catch { /* icon was deleted, silently skip */ }
   }
 
-  // Header
+  // Header — palette colors when fill is set, random schemes for 'random', plain for mono
   const header = figlet.textSync('clarissa', { font: 'Pagga' })
-  const [hPrimary, hAccent] = HEADER_SCHEMES[Math.floor(Math.random() * HEADER_SCHEMES.length)]
+  let hColors: [number, number] | null = null
+  if (activePalette === 'random') {
+    hColors = HEADER_SCHEMES[Math.floor(Math.random() * HEADER_SCHEMES.length)]
+  } else if (palette.fill !== null) {
+    hColors = [palette.fill, palette.accent]
+  }
   console.log()
-  console.log(header.split('\n').map(l => `  ${renderTwoTone(l, hPrimary, hAccent)}`).join('\n'))
+  console.log(header.split('\n').map(l =>
+    `  ${hColors ? renderTwoTone(l, hColors[0], hColors[1]) : l}`
+  ).join('\n'))
 
   // Greeting
   if (chart?.userName) {
@@ -321,8 +321,6 @@ export async function welcome(): Promise<void> {
     case 'setup': {
       rl.close()
       await setup()
-      const jump2 = await waitForMenu()
-      if (jump2) return handleChoice(jump2)
       await welcome()
       break
     }

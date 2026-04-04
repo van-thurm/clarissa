@@ -282,7 +282,7 @@ export async function jam(): Promise<void> {
   if (patched) {
     console.log(`  ${DIM}added shells.sh to your .zshrc — ${name} will be available in new terminal sessions${RESET}`)
   } else {
-    console.log(`  ${DIM}to activate now:  source ~/.clarissa/shells.sh${RESET}`)
+    console.log(`  ${DIM}open clarissa in a new window to see change${RESET}`)
   }
   console.log()
 }

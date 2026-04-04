@@ -476,17 +476,14 @@ export async function specialReport(): Promise<void> {
 
   // nav pause
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  console.log(`  ${DIM}m  menu   q  quit${RESET}`)
+  console.log(`  ${DIM}q  back${RESET}`)
   console.log()
   while (true) {
     const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
-    if (pick === 'q' || pick === 'quit') { rl.close(); process.exit(0) }
-    if (!pick || pick === 'm' || pick === 'menu') {
+    if (!pick || pick === 'q' || pick === 'back') {
       rl.close()
-      const { welcome } = await import('./welcome.js')
-      await welcome()
       return
     }
-    console.log(`  ${DIM}press m for menu or q to quit${RESET}`)
+    console.log(`  ${DIM}press q to go back${RESET}`)
   }
 }

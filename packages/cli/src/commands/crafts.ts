@@ -6,10 +6,11 @@ import figlet from 'figlet'
 import { PALETTES, PALETTE_KEYS, renderIcon } from '@clarissa/core'
 import type { PaletteKey } from '@clarissa/core'
 import { getActivePalette, setActivePalette } from '../state.js'
-import { SHELLS_FILE, isValidName } from '../paths.js'
+import { SHELLS_FILE, ZSHRC, isValidName } from '../paths.js'
 import { ICONS_DIR, listIcons, loadIcon, saveIcon } from '../store.js'
 import { processAndSaveIcon } from './add.js'
-import { useArt, useFont, manageArt } from './use-art.js'
+import { useArt, useFont } from './use-art.js'
+import { getWelcomeArt, clearWelcomeArt } from '../state.js'
 import { preview } from './preview.js'
 import { fonts, FONT_CATEGORIES } from './fonts.js'
 import { jam } from './jam.js'
@@ -271,8 +272,12 @@ async function previewPicker(): Promise<void> {
 async function browseFonts(): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   console.log()
+  console.log(`  ${DIM}q  back${RESET}`)
+  console.log()
   const customText = (await rl.question(`  ${DIM}text to preview (enter for "hey"):${RESET}  `)).trim()
   rl.close()
+
+  if (customText.toLowerCase() === 'q') return
 
   const sample = customText || 'hey'
 
@@ -355,7 +360,7 @@ async function showArt(): Promise<void> {
     console.log(`  ${ACCENT}b${RESET}  ${BOLD}add art${RESET}            ${DIM}convert an image${RESET}`)
     console.log(`  ${ACCENT}c${RESET}  ${BOLD}preview art${RESET}        ${DIM}pick from your collection${RESET}`)
     console.log(`  ${ACCENT}d${RESET}  ${BOLD}list saved art${RESET}`)
-    console.log(`  ${ACCENT}e${RESET}  ${BOLD}manage${RESET}             ${DIM}remove welcome art, startup art, etc.${RESET}`)
+    console.log(`  ${ACCENT}e${RESET}  ${BOLD}manage${RESET}             ${DIM}remove saved art${RESET}`)
     console.log()
     nav()
     console.log()
@@ -392,7 +397,7 @@ async function showArt(): Promise<void> {
       }
       case 'e':
       case 'manage':
-        await manageArt()
+        await manage()
         break
       case 'q':
       case 'quit':
@@ -621,6 +626,333 @@ async function jamsMenu(): Promise<void> {
     await renameJamFunction(fnName, raw)
     console.log()
     console.log(`  ${DIM}renamed to ${raw}${RESET}`)
+    console.log()
+  }
+}
+
+// ── manage (unified hub) ─────────────────────────────────────────────────────
+
+async function getStartupArtNames(): Promise<string[]> {
+  let content = ''
+  try { content = await fs.readFile(ZSHRC, 'utf-8') } catch { return [] }
+  const names: string[] = []
+  for (const line of content.split('\n')) {
+    const m = line.match(/^# clarissa art: (.+)$/)
+    if (m) names.push(m[1])
+  }
+  return names
+}
+
+async function removeStartupArt(name: string): Promise<boolean> {
+  let content = ''
+  try { content = await fs.readFile(ZSHRC, 'utf-8') } catch { return false }
+  const marker = `# clarissa art: ${name}`
+  if (!content.includes(marker)) return false
+  const lines = content.split('\n')
+  const out: string[] = []
+  let skipping = false
+  for (const line of lines) {
+    if (line === marker) { skipping = true; continue }
+    if (skipping) {
+      if (line.startsWith('echo "') || line.trim() === '') continue
+      skipping = false
+    }
+    out.push(line)
+  }
+  await fs.writeFile(ZSHRC, out.join('\n'))
+  return true
+}
+
+function getJamCommand(fnName: string, content: string): string | null {
+  const lines = content.split('\n')
+  const start = lines.findIndex(l => l.trimEnd() === `function ${fnName}() {`)
+  if (start < 0) return null
+  for (let i = start + 1; i < lines.length; i++) {
+    if (lines[i].trimEnd() === '}') return null
+    const trimmed = lines[i].trim()
+    if (trimmed && !trimmed.startsWith('local _art=') && !trimmed.startsWith('"') && !trimmed.startsWith(')') && !trimmed.startsWith("printf")) {
+      return trimmed
+    }
+  }
+  return null
+}
+
+async function setJamCommand(fnName: string, newCmd: string | null): Promise<void> {
+  const content = await fs.readFile(SHELLS_FILE, 'utf-8')
+  const lines = content.split('\n')
+  const start = lines.findIndex(l => l.trimEnd() === `function ${fnName}() {`)
+  if (start < 0) return
+
+  const result: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    if (i === start) {
+      result.push(lines[i])
+      i++
+      while (i < lines.length && lines[i].trimEnd() !== '}') {
+        const trimmed = lines[i].trim()
+        if (trimmed && !trimmed.startsWith('local _art=') && !trimmed.startsWith('"') && !trimmed.startsWith(')') && !trimmed.startsWith("printf")) {
+          i++
+          continue
+        }
+        result.push(lines[i])
+        i++
+      }
+      if (newCmd) result.push(`  ${newCmd}`)
+      if (i < lines.length) result.push(lines[i])
+      i++
+    } else {
+      result.push(lines[i])
+      i++
+    }
+  }
+  await fs.writeFile(SHELLS_FILE, result.join('\n'))
+}
+
+async function manage(): Promise<void> {
+  console.log()
+  console.log(hr())
+  console.log(`  ${BOLD}manage${RESET}`)
+  console.log(hr())
+  console.log()
+  console.log(`  ${ACCENT}a${RESET}  ${BOLD}art${RESET}              ${DIM}rename or delete saved icons${RESET}`)
+  console.log(`  ${ACCENT}b${RESET}  ${BOLD}jams & startups${RESET}`)
+  console.log()
+  nav()
+  console.log()
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+  rl.close()
+
+  if (pick === 'a' || pick === 'art') {
+    await manageArtIcons()
+  } else if (pick === 'b' || pick === 'jams') {
+    await manageJamsAndStartups()
+  }
+}
+
+async function manageArtIcons(): Promise<void> {
+  const icons = await listIcons()
+
+  console.log()
+  console.log(hr())
+  console.log(`  ${BOLD}manage art${RESET}`)
+  console.log(hr())
+  console.log()
+
+  if (icons.length === 0) {
+    console.log(`  ${DIM}no saved art yet${RESET}`)
+    console.log()
+    return
+  }
+
+  for (let i = 0; i < icons.length; i++) {
+    console.log(`  ${ACCENT}${label(i)}${RESET}  ${icons[i]}`)
+  }
+  console.log()
+  console.log(`  ${DIM}pick one to manage, or q to go back${RESET}`)
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim()
+
+  if (!pick || pick.toLowerCase() === 'q') { rl.close(); return }
+
+  let idx = labelIndex(pick.toLowerCase())
+  if ((idx < 0 || idx >= icons.length) && pick) idx = icons.findIndex(n => n.toLowerCase() === pick.toLowerCase())
+  if (idx < 0 || idx >= icons.length) { rl.close(); return }
+
+  const name = icons[idx]
+  const iconData = await loadIcon(name)
+
+  console.log()
+  console.log(`  ${BOLD}${name}${RESET}  ${DIM}(${iconData.size}px)${RESET}`)
+  console.log()
+  console.log(`  ${ACCENT}r${RESET}  rename`)
+  console.log(`  ${ACCENT}d${RESET}  delete`)
+  console.log(`  ${DIM}enter  back${RESET}`)
+  console.log()
+
+  const action = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+  rl.close()
+
+  if (action === 'd' || action === 'delete') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    const confirm = (await rl2.question(`  delete ${name}? (y/n)  `)).trim().toLowerCase()
+    rl2.close()
+    if (confirm === 'y' || confirm === 'yes') {
+      await fs.unlink(path.join(ICONS_DIR, `${name}.json`)).catch(() => {})
+      await fs.unlink(path.join(ICONS_DIR, `${name}.sh`)).catch(() => {})
+      console.log()
+      console.log(`  ${DIM}deleted ${name}${RESET}`)
+      console.log()
+    }
+  } else if (action === 'r' || action === 'rename') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    const raw = (await rl2.question(`  new name:  `)).trim()
+    rl2.close()
+    if (!raw || !isValidName(raw)) {
+      console.log(`  ${DIM}invalid name — letters, numbers, hyphens only${RESET}`)
+      console.log()
+      return
+    }
+    if (icons.includes(raw)) {
+      console.log(`  ${DIM}${raw} already exists${RESET}`)
+      console.log()
+      return
+    }
+    const updated = { ...iconData, name: raw }
+    await saveIcon(updated)
+    await fs.unlink(path.join(ICONS_DIR, `${name}.json`)).catch(() => {})
+    await fs.unlink(path.join(ICONS_DIR, `${name}.sh`)).catch(() => {})
+    console.log()
+    console.log(`  ${DIM}renamed to ${raw}${RESET}`)
+    console.log()
+  }
+}
+
+async function manageJamsAndStartups(): Promise<void> {
+  const [jamNames, welcomeName, startupNames] = await Promise.all([
+    listJamFunctions(),
+    getWelcomeArt(),
+    getStartupArtNames(),
+  ])
+
+  type Item = { label: string; type: 'jam' | 'welcome' | 'startup'; name: string }
+  const items: Item[] = []
+  for (const j of jamNames) items.push({ label: `jam: ${j}`, type: 'jam', name: j })
+  if (welcomeName) items.push({ label: `welcome art: ${welcomeName}`, type: 'welcome', name: welcomeName })
+  for (const s of startupNames) items.push({ label: `startup: ${s}`, type: 'startup', name: s })
+
+  console.log()
+  console.log(hr())
+  console.log(`  ${BOLD}manage jams & startups${RESET}`)
+  console.log(hr())
+  console.log()
+
+  if (items.length === 0) {
+    console.log(`  ${DIM}nothing set yet${RESET}`)
+    console.log()
+    return
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    console.log(`  ${ACCENT}${label(i)}${RESET}  ${items[i].label}`)
+  }
+  console.log()
+  console.log(`  ${DIM}pick one to manage, or q to go back${RESET}`)
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+
+  if (!pick || pick === 'q') { rl.close(); return }
+
+  const idx = labelIndex(pick)
+  if (idx < 0 || idx >= items.length) { rl.close(); return }
+
+  const item = items[idx]
+
+  if (item.type === 'welcome') {
+    console.log()
+    console.log(`  ${BOLD}${item.label}${RESET}`)
+    console.log()
+    console.log(`  ${ACCENT}d${RESET}  remove`)
+    console.log(`  ${DIM}enter  back${RESET}`)
+    console.log()
+    const action = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+    rl.close()
+    if (action === 'd') {
+      await clearWelcomeArt()
+      console.log()
+      console.log(`  ${DIM}welcome art cleared${RESET}`)
+      console.log()
+    }
+    return
+  }
+
+  if (item.type === 'startup') {
+    console.log()
+    console.log(`  ${BOLD}${item.label}${RESET}`)
+    console.log()
+    console.log(`  ${ACCENT}d${RESET}  remove`)
+    console.log(`  ${DIM}enter  back${RESET}`)
+    console.log()
+    const action = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+    rl.close()
+    if (action === 'd') {
+      const removed = await removeStartupArt(item.name)
+      console.log()
+      console.log(removed ? `  ${DIM}removed ${item.name}${RESET}` : `  ${DIM}couldn't find ${item.name} in .zshrc${RESET}`)
+      console.log()
+    }
+    return
+  }
+
+  // Jam — rename, delete, or edit
+  let shellsContent = ''
+  try { shellsContent = await fs.readFile(SHELLS_FILE, 'utf-8') } catch {}
+  const currentCmd = getJamCommand(item.name, shellsContent)
+
+  console.log()
+  console.log(`  ${BOLD}${item.name}${RESET}${currentCmd ? `  ${DIM}runs: ${currentCmd}${RESET}` : ''}`)
+  console.log()
+  console.log(`  ${ACCENT}r${RESET}  rename`)
+  console.log(`  ${ACCENT}d${RESET}  delete`)
+  console.log(`  ${ACCENT}e${RESET}  edit command`)
+  console.log(`  ${DIM}enter  back${RESET}`)
+  console.log()
+
+  const action = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+  rl.close()
+
+  if (action === 'd' || action === 'delete') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    const confirm = (await rl2.question(`  delete ${item.name}? (y/n)  `)).trim().toLowerCase()
+    rl2.close()
+    if (confirm === 'y' || confirm === 'yes') {
+      await deleteJamFunction(item.name)
+      console.log()
+      console.log(`  ${DIM}deleted ${item.name}${RESET}`)
+      console.log()
+    }
+  } else if (action === 'r' || action === 'rename') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    const raw = (await rl2.question(`  new name:  `)).trim()
+    rl2.close()
+    if (!raw || !isValidName(raw)) {
+      console.log(`  ${DIM}invalid name — letters, numbers, hyphens only${RESET}`)
+      console.log()
+      return
+    }
+    const fnNames = await listJamFunctions()
+    if (fnNames.includes(raw)) {
+      console.log(`  ${DIM}${raw} already exists${RESET}`)
+      console.log()
+      return
+    }
+    await renameJamFunction(item.name, raw)
+    console.log()
+    console.log(`  ${DIM}renamed to ${raw}${RESET}`)
+    console.log()
+  } else if (action === 'e' || action === 'edit') {
+    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout })
+    console.log()
+    if (currentCmd) {
+      console.log(`  ${DIM}current command: ${currentCmd}${RESET}`)
+    } else {
+      console.log(`  ${DIM}no command set (art only)${RESET}`)
+    }
+    console.log(`  ${DIM}enter new command, or leave blank to clear${RESET}`)
+    console.log()
+    const newCmd = (await rl2.question(`  → `)).trim()
+    rl2.close()
+    await setJamCommand(item.name, newCmd || null)
+    console.log()
+    console.log(newCmd ? `  ${DIM}command updated to: ${newCmd}${RESET}` : `  ${DIM}command cleared${RESET}`)
     console.log()
   }
 }
