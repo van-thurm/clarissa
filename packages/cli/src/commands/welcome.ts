@@ -13,6 +13,7 @@ import { advice } from './advice.js'
 import { crafts } from './crafts.js'
 import { setup } from './setup.js'
 import { specialReport } from './special-report.js'
+import { planetarium } from './planetarium.js'
 import { loadTheme, RESET, BOLD } from '../theme.js'
 
 let DIM = '', ACCENT = ''
@@ -86,7 +87,7 @@ async function waitForMenu(): Promise<string | null> {
     }
 
     // Allow jumping directly to a section
-    if (['1', 'special-report', 'special', '2', 'advice', '3', 'crafts', '4', 'horoscope', 'daily', '5', 'setup', 'g', 'go'].includes(pick)) {
+    if (['1', 'special-report', 'special', '2', 'advice', '3', 'crafts', '4', 'horoscope', 'daily', '5', 'planetarium', '6', 'setup', 'g', 'go'].includes(pick)) {
       rl.close()
       return pick
     }
@@ -170,7 +171,11 @@ async function handleChoice(choice: string): Promise<void> {
       { const j = await waitForMenu(); if (j) return handleChoice(j) }
       await welcome()
       break
-    case '5': case 'setup':
+    case '5': case 'planetarium':
+      await planetarium()
+      await welcome()
+      break
+    case '6': case 'setup':
       await setup()
       { const j = await waitForMenu(); if (j) return handleChoice(j) }
       await welcome()
@@ -263,7 +268,8 @@ export async function welcome(): Promise<void> {
   console.log(`  ${dim('2')}  ${bold('advice')}`)
   console.log(`  ${dim('3')}  ${bold('crafts')}`)
   console.log(`  ${dim('4')}  ${bold('horoscope')}`)
-  console.log(`  ${dim('5')}  ${bold('setup')}`)
+  console.log(`  ${dim('5')}  ${bold('planetarium')}`)
+  console.log(`  ${dim('6')}  ${bold('setup')}`)
   console.log()
   console.log(`  ${dim('g')}  ${bold('quit + go')}  ${goCommand ? dim(goCommand) : dim('not set')}`)
   console.log(`  ${dim('q')}  quit`)
@@ -318,6 +324,14 @@ export async function welcome(): Promise<void> {
     }
 
     case '5':
+    case 'planetarium': {
+      rl.close()
+      await planetarium()
+      await welcome()
+      break
+    }
+
+    case '6':
     case 'setup': {
       rl.close()
       await setup()
@@ -357,7 +371,7 @@ export async function welcome(): Promise<void> {
 
     default:
       rl.close()
-      if (choice) console.log(`  ${dim('press 1 · 2 · 3 · 4 · 5 · g · q')}\n`)
+      if (choice) console.log(`  ${dim('press 1 · 2 · 3 · 4 · 5 · 6 · g · q')}\n`)
       await welcome()
   }
 }
