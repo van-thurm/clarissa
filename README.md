@@ -57,4 +57,5 @@ run `clarissa` with no arguments to see the welcome screen, or use a command:
 | `clarissa dir [path]` | set default image directory |
 | `clarissa crafts` | pixel art, fonts, and shell command tools |
 | `clarissa jam` | make a new shell command |
+| `clarissa planetarium` | sky view via astroterm (needs `brew install astroterm`) |
 

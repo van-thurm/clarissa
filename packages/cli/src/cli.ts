@@ -25,7 +25,7 @@ const program = new Command()
 program
   .name('clarissa')
   .description('make your terminal feel like yours')
-  .version('0.0.1')
+  .version('0.0.12')
 
 program
   .command('add <file>')
