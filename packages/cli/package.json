@@ -21,7 +21,8 @@
   ],
   "scripts": {
     "build": "tsup",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

@@ -10,7 +10,9 @@ import { getDailyMessage } from '../astro/chart.js'
 import { fetchWeather } from './daily.js'
 import { daily } from './daily.js'
 import { advice } from './advice.js'
+import { chart } from './chart.js'
 import { crafts } from './crafts.js'
+import { me } from './me.js'
 import { setup } from './setup.js'
 import { specialReport } from './special-report.js'
 import { planetarium } from './planetarium.js'
@@ -96,6 +98,97 @@ async function waitForMenu(): Promise<string | null> {
   }
 }
 
+// ── horoscope ────────────────────────────────────────────────────────────────
+
+function showHoroscopeActions(hasChart: boolean): void {
+  console.log(`  ${DIM}─────────────────────────────────────${RESET}`)
+  console.log()
+  if (hasChart) {
+    console.log(`  ${ACCENT}a${RESET}  ${BOLD}big three${RESET}`)
+    console.log(`  ${ACCENT}b${RESET}  ${BOLD}natal chart${RESET}`)
+    console.log(`  ${ACCENT}c${RESET}  ${BOLD}advice${RESET}`)
+  } else {
+    console.log(`  ${ACCENT}a${RESET}  ${BOLD}setup birth chart${RESET}`)
+  }
+  console.log()
+  console.log(`  ${DIM}q  back${RESET}`)
+  console.log()
+}
+
+async function askAdviceQuestion(): Promise<boolean> {
+  while (true) {
+    const hasChart = !!(await getChart())
+
+    if (!hasChart) {
+      showHoroscopeActions(false)
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+      const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+      rl.close()
+
+      if (pick === 'a' || pick === 'setup') {
+        await setup()
+        continue
+      }
+      if (pick === 'q' || pick === 'back') return false
+      if (pick) {
+        console.log()
+        console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}q${RESET}`)
+        console.log()
+      }
+      continue
+    }
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    const question = (await rl.question(`  ${dim("what's on your mind?")}  `)).trim()
+    rl.close()
+    console.log()
+    if (!question) return false
+    await advice(question)
+    return true
+  }
+}
+
+async function horoscopeMenu(): Promise<void> {
+  await daily({ showCommandHints: false })
+
+  while (true) {
+    const hasChart = !!(await getChart())
+    showHoroscopeActions(hasChart)
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
+    rl.close()
+
+    if (pick === 'q' || pick === 'back') return
+
+    if (hasChart) {
+      switch (pick) {
+        case 'a': case 'me':
+          await me()
+          break
+        case 'b': case 'chart':
+          await chart()
+          break
+        case 'c': case 'advice':
+          await askAdviceQuestion()
+          break
+        default:
+          if (pick) {
+            console.log()
+            console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}b${DIM} · ${ACCENT}c${DIM} · ${ACCENT}q${RESET}`)
+            console.log()
+          }
+      }
+    } else if (pick === 'a' || pick === 'setup') {
+      await setup()
+    } else if (pick) {
+      console.log()
+      console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}q${RESET}`)
+      console.log()
+    }
+  }
+}
+
 // ── quit + go ─────────────────────────────────────────────────────────────────
 
 const GO_FILE = `${CLARISSA_DIR}/.go`
@@ -150,12 +243,8 @@ async function handleChoice(choice: string): Promise<void> {
       await welcome()
       break
     case '2': case 'advice': {
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-      const q = (await rl.question(`  ${dim("what's on your mind?")}  `)).trim()
-      rl.close()
-      console.log()
-      if (q) {
-        await advice(q)
+      const answered = await askAdviceQuestion()
+      if (answered) {
         const j = await waitForMenu()
         if (j) return handleChoice(j)
       }
@@ -167,8 +256,7 @@ async function handleChoice(choice: string): Promise<void> {
       await welcome()
       break
     case '4': case 'horoscope': case 'daily':
-      await daily()
-      { const j = await waitForMenu(); if (j) return handleChoice(j) }
+      await horoscopeMenu()
       await welcome()
       break
     case '5': case 'planetarium':
@@ -293,11 +381,9 @@ export async function welcome(): Promise<void> {
 
     case '2':
     case 'advice': {
-      const q = (await rl.question(`  ${dim("what's on your mind?")}  `)).trim()
       rl.close()
-      console.log()
-      if (q) {
-        await advice(q)
+      const answered = await askAdviceQuestion()
+      if (answered) {
         const jump = await waitForMenu()
         if (jump) return handleChoice(jump)
       }
@@ -316,9 +402,7 @@ export async function welcome(): Promise<void> {
     case 'horoscope':
     case 'daily': {
       rl.close()
-      await daily()
-      const jump = await waitForMenu()
-      if (jump) return handleChoice(jump)
+      await horoscopeMenu()
       await welcome()
       break
     }

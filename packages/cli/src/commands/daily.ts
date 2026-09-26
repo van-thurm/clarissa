@@ -6,6 +6,10 @@ import { loadTheme, RESET, BOLD } from '../theme.js'
 let DIM = '', ACCENT = ''
 function hr(): string { return `  ${ACCENT}${'━'.repeat(49)}${RESET}` }
 
+interface DailyOptions {
+  showCommandHints?: boolean
+}
+
 export async function fetchWeather(location: string): Promise<string | null> {
   try {
     const controller = new AbortController()
@@ -24,7 +28,7 @@ export async function fetchWeather(location: string): Promise<string | null> {
   }
 }
 
-export async function daily(): Promise<void> {
+export async function daily({ showCommandHints = true }: DailyOptions = {}): Promise<void> {
   const t = await loadTheme(); ACCENT = t.ACCENT; DIM = t.DIM
   const [data, location] = await Promise.all([getChart(), getLocation()])
 
@@ -70,12 +74,14 @@ export async function daily(): Promise<void> {
   console.log(`  ${DIM}${transit}${RESET}`)
   console.log()
 
-  if (data) {
-    console.log(`  ${DIM}clarissa me      full big three interpretations${RESET}`)
-    console.log(`  ${DIM}clarissa chart   all 11 placements${RESET}`)
-    console.log(`  ${DIM}clarissa advice  ask a question about today${RESET}`)
-  } else {
-    console.log(`  ${DIM}run ${RESET}${BOLD}clarissa setup${RESET}${DIM} to add your natal chart${RESET}`)
+  if (showCommandHints) {
+    if (data) {
+      console.log(`  ${DIM}clarissa me      full big three interpretations${RESET}`)
+      console.log(`  ${DIM}clarissa chart   all 11 placements${RESET}`)
+      console.log(`  ${DIM}clarissa advice  ask a question about today${RESET}`)
+    } else {
+      console.log(`  ${DIM}run ${RESET}${BOLD}clarissa setup${RESET}${DIM} to add your natal chart${RESET}`)
+    }
   }
 
   console.log()
