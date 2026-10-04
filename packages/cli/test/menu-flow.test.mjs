@@ -147,12 +147,12 @@ test('Horoscope shows lettered actions without shell command hints', async () =>
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         {
           waitFor: /a\s+big three[\s\S]*b\s+natal chart[\s\S]*c\s+advice[\s\S]*q\s+back/,
           input: 'q\n',
         },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -165,10 +165,10 @@ test('Horoscope action a opens the big three and returns to its actions', async 
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /a\s+big three/, input: 'a\n' },
         { waitFor: /THE BIG THREE[\s\S]*a\s+big three/, input: 'q\n' },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -181,10 +181,10 @@ test('Horoscope action b opens the natal chart and returns to its actions', asyn
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /b\s+natal chart/, input: 'b\n' },
         { waitFor: /natal chart[\s\S]*OUTER PLANETS[\s\S]*a\s+big three/, input: 'q\n' },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -197,11 +197,11 @@ test('Horoscope action c asks for advice and returns to its actions', async () =
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /c\s+advice/, input: 'c\n' },
         { waitFor: /what's on your mind\?/, input: 'should i ship today?\n' },
         { waitFor: /"should i ship today\?"[\s\S]*a\s+big three/, input: 'q\n' },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -214,7 +214,7 @@ test('Horoscope rechecks chart state after setup returns', async () => {
   await withIsolatedHome(NO_CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /a\s+setup birth chart[\s\S]*q\s+back/, input: 'a\n' },
         {
           waitFor: /d\s+birth chart[\s\S]*q\s+back/,
@@ -228,7 +228,7 @@ test('Horoscope rechecks chart state after setup returns', async () => {
           waitFor: /a\s+big three[\s\S]*b\s+natal chart[\s\S]*c\s+advice[\s\S]*q\s+back/,
           input: 'q\n',
         },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -240,15 +240,15 @@ test('Horoscope rechecks chart state after setup returns', async () => {
   })
 })
 
-test('welcome Advice offers setup before asking a question when no chart exists', async () => {
+test('Horoscope offers setup before advice when no chart exists', async () => {
   await withIsolatedHome(NO_CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /2\s+advice/, input: '2\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /a\s+setup birth chart[\s\S]*q\s+back/, input: 'a\n' },
         { waitFor: /d\s+birth chart/, input: 'q\n' },
         { waitFor: /a\s+setup birth chart/, input: 'q\n' },
-        { waitFor: /2\s+advice/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -261,10 +261,10 @@ test('invalid Horoscope input names visible keys and reprompts', async () => {
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /a\s+big three/, input: 'z\n' },
         { waitFor: /press a · b · c · q[\s\S]*a\s+big three/, input: 'q\n' },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
@@ -277,14 +277,52 @@ test('back from Horoscope returns to the welcome menu', async () => {
   await withIsolatedHome(CHART_FIXTURE, async home => {
     const result = await runCli(home, {
       steps: [
-        { waitFor: /4\s+horoscope/, input: '4\n' },
+        { waitFor: /2\s+horoscope/, input: '2\n' },
         { waitFor: /a\s+big three/, input: 'back\n' },
-        { waitFor: /4\s+horoscope/, input: 'q\n' },
+        { waitFor: /2\s+horoscope/, input: 'q\n' },
       ],
     })
 
     assertCleanExit(result)
-    assert.ok((result.output.match(/1\s+special report/g) ?? []).length >= 2)
+    assert.ok((result.output.match(/1\s+today/g) ?? []).length >= 2)
+  })
+})
+
+test('Today opens the daily view and returns to the expressive home', async () => {
+  await withIsolatedHome(CHART_FIXTURE, async home => {
+    const result = await runCli(home, {
+      steps: [
+        { waitFor: /1\s+today/, input: '1\n' },
+        { waitFor: /Aries\s+·\s+☽\s+Taurus[\s\S]*q\s+back/, input: 'q\n' },
+        { waitFor: /1\s+today/, input: 'q\n' },
+      ],
+    })
+
+    assertCleanExit(result)
+    assert.match(result.output, /Sun in Aries|☉ Aries/)
+  })
+})
+
+test('Room menu opens the visual room and returns home', async () => {
+  await withIsolatedHome(CHART_FIXTURE, async home => {
+    const result = await runCli(home, {
+      steps: [
+        { waitFor: /5\s+room/, input: '5\n' },
+        { waitFor: /CLARISSA'S ROOM[\s\S]*LEFT\/RIGHT or TAB focus[\s\S]*5\s+room/, input: 'q\n' },
+      ],
+    })
+
+    assertCleanExit(result)
+    assert.match(result.output, /WINDOW \+ OUTSIDE LADDER/)
+  })
+})
+
+test('direct room renders a static fallback outside a TTY', async () => {
+  await withIsolatedHome(CHART_FIXTURE, async home => {
+    const result = await runCli(home, { args: ['room'] })
+    assertCleanExit(result)
+    assert.match(result.output, /CLARISSA'S ROOM/)
+    assert.match(result.output, /LEFT\/RIGHT or TAB focus/)
   })
 })
 

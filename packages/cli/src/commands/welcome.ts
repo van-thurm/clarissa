@@ -1,107 +1,28 @@
-import figlet from 'figlet'
-import * as readline from 'readline/promises'
-import fs from 'fs/promises'
-import { PALETTES, renderIcon } from '@clarissa/core'
-import { CLARISSA_DIR, ZSHRC } from '../paths.js'
-import { getActivePalette, getChart, getGoCommand, getLocation, setGoCommand, getWelcomeArt } from '../state.js'
-import { loadIcon } from '../store.js'
-import { getMoonPhase, getMoonPhaseName, getMoonPhaseSymbol, getMoonGuidance } from '../astro/moon.js'
-import { getDailyMessage } from '../astro/chart.js'
-import { fetchWeather } from './daily.js'
-import { daily } from './daily.js'
+import * as readline from 'node:readline/promises'
+import { getChart } from '../state.js'
+import { selectHomeMenu } from '../home/menu.js'
+import { loadTheme, RESET, BOLD } from '../theme.js'
 import { advice } from './advice.js'
 import { chart } from './chart.js'
 import { crafts } from './crafts.js'
+import { daily } from './daily.js'
 import { me } from './me.js'
-import { setup } from './setup.js'
-import { specialReport } from './special-report.js'
 import { planetarium } from './planetarium.js'
-import { loadTheme, RESET, BOLD } from '../theme.js'
+import { room } from './room.js'
+import { setup } from './setup.js'
 
-let DIM = '', ACCENT = ''
+let DIM = ''
+let ACCENT = ''
 
-function dim(s: string):  string { return `${DIM}${s}${RESET}` }
-function bold(s: string): string { return `${BOLD}${s}${RESET}` }
-function pal(code: number | null, s: string): string {
-  return code === null ? s : `\x1b[38;5;${code}m${s}${RESET}`
+function dim(value: string): string {
+  return `${DIM}${value}${RESET}`
 }
-
-// Curated two-tone color pairs [full █, halfdots ░▀▄]
-const HEADER_SCHEMES: [number, number][] = [
-  [183, 213],  // lavender + pink
-  [87,  227],  // teal + yellow
-  [216, 158],  // coral + mint
-  [141, 51 ],  // purple + cyan
-  [214, 39 ],  // orange + blue
-  [213, 220],  // pink + gold
-  [118, 213],  // green + pink
-  [75,  208],  // sky + orange
-  [122, 141],  // mint + purple
-  [51,  216],  // cyan + coral
-]
-
-function renderTwoTone(line: string, primary: number, accent: number): string {
-  return line.split('').map(ch => {
-    if (ch === '█') return `\x1b[38;5;${primary}m${ch}${RESET}`
-    if ('░▒▓▀▄▌▐'.includes(ch)) return `\x1b[38;5;${accent}m${ch}${RESET}`
-    return ch
-  }).join('')
-}
-
-// ── lucky numbers — seeded by date, same all day, resets at midnight ──────────
-
-function dateHash(str: string): number {
-  let h = 2166136261
-  for (const c of str) {
-    h ^= c.charCodeAt(0)
-    h = Math.imul(h, 16777619)
-    h >>>= 0
-  }
-  return h >>> 0
-}
-
-function getDailyLucky(date: Date = new Date()): number[] {
-  let seed = dateHash(date.toDateString())
-  const next = (): number => {
-    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0
-    return seed
-  }
-  const nums = new Set<number>()
-  while (nums.size < 7) nums.add((next() % 49) + 1)
-  return [...nums].sort((a, b) => a - b)
-}
-
-// ── nav pause ────────────────────────────────────────────────────────────────
-
-// Returns the shortcut key if user wants to jump directly, or null for menu
-async function waitForMenu(): Promise<string | null> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  console.log(`  ${DIM}─────────────────────────────────────${RESET}`)
-  console.log(`  ${DIM}q  back${RESET}`)
-  console.log()
-
-  while (true) {
-    const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
-
-    if (!pick || pick === 'q' || pick === 'back') {
-      rl.close()
-      return null
-    }
-
-    // Allow jumping directly to a section
-    if (['1', 'special-report', 'special', '2', 'advice', '3', 'crafts', '4', 'horoscope', 'daily', '5', 'planetarium', '6', 'setup', 'g', 'go'].includes(pick)) {
-      rl.close()
-      return pick
-    }
-
-    console.log(`  ${DIM}press q to go back${RESET}`)
-  }
-}
-
-// ── horoscope ────────────────────────────────────────────────────────────────
 
 function showHoroscopeActions(hasChart: boolean): void {
-  console.log(`  ${DIM}─────────────────────────────────────${RESET}`)
+  console.log()
+  console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
+  console.log(`  ${BOLD}horoscope${RESET}`)
+  console.log(`  ${ACCENT}${'━'.repeat(49)}${RESET}`)
   console.log()
   if (hasChart) {
     console.log(`  ${ACCENT}a${RESET}  ${BOLD}big three${RESET}`)
@@ -115,347 +36,102 @@ function showHoroscopeActions(hasChart: boolean): void {
   console.log()
 }
 
+async function ask(prompt: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    return (await rl.question(prompt)).trim()
+  } finally {
+    rl.close()
+  }
+}
+
+async function waitForBack(): Promise<void> {
+  while (true) {
+    const choice = (await ask(`  ${DIM}q  back${RESET}\n\n  ${DIM}→${RESET}  `)).toLowerCase()
+    if (!choice || choice === 'q' || choice === 'back') return
+    console.log()
+    console.log(`  ${DIM}press ${ACCENT}q${DIM} to go back${RESET}`)
+    console.log()
+  }
+}
+
 async function askAdviceQuestion(): Promise<boolean> {
   while (true) {
-    const hasChart = !!(await getChart())
-
+    const hasChart = Boolean(await getChart())
     if (!hasChart) {
       showHoroscopeActions(false)
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-      const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
-      rl.close()
-
-      if (pick === 'a' || pick === 'setup') {
+      const choice = (await ask(`  ${DIM}→${RESET}  `)).toLowerCase()
+      if (choice === 'a' || choice === 'setup') {
         await setup()
         continue
       }
-      if (pick === 'q' || pick === 'back') return false
-      if (pick) {
-        console.log()
-        console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}q${RESET}`)
-        console.log()
-      }
-      continue
+      return false
     }
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    const question = (await rl.question(`  ${dim("what's on your mind?")}  `)).trim()
-    rl.close()
+    const question = await ask(`  ${dim("what's on your mind?")}  `)
     console.log()
-    if (!question) return false
+    if (!question || question.toLowerCase() === 'q') return false
     await advice(question)
     return true
   }
 }
 
-async function horoscopeMenu(): Promise<void> {
+async function todayView(): Promise<void> {
   await daily({ showCommandHints: false })
+  await waitForBack()
+}
 
+async function horoscopeMenu(): Promise<void> {
   while (true) {
-    const hasChart = !!(await getChart())
+    const hasChart = Boolean(await getChart())
     showHoroscopeActions(hasChart)
+    const choice = (await ask(`  ${DIM}→${RESET}  `)).toLowerCase()
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    const pick = (await rl.question(`  ${DIM}→${RESET}  `)).trim().toLowerCase()
-    rl.close()
-
-    if (pick === 'q' || pick === 'back') return
-
-    if (hasChart) {
-      switch (pick) {
-        case 'a': case 'me':
-          await me()
-          break
-        case 'b': case 'chart':
-          await chart()
-          break
-        case 'c': case 'advice':
-          await askAdviceQuestion()
-          break
-        default:
-          if (pick) {
-            console.log()
-            console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}b${DIM} · ${ACCENT}c${DIM} · ${ACCENT}q${RESET}`)
-            console.log()
-          }
-      }
-    } else if (pick === 'a' || pick === 'setup') {
+    if (!choice || choice === 'q' || choice === 'back') return
+    if (!hasChart && (choice === 'a' || choice === 'setup')) {
       await setup()
-    } else if (pick) {
+      continue
+    }
+
+    if (hasChart && (choice === 'a' || choice === 'me')) {
+      await me()
+    } else if (hasChart && (choice === 'b' || choice === 'chart')) {
+      await chart()
+    } else if (hasChart && (choice === 'c' || choice === 'advice')) {
+      await askAdviceQuestion()
+    } else {
       console.log()
-      console.log(`  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}q${RESET}`)
+      console.log(
+        hasChart
+          ? `  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}b${DIM} · ${ACCENT}c${DIM} · ${ACCENT}q${RESET}`
+          : `  ${DIM}press ${ACCENT}a${DIM} · ${ACCENT}q${RESET}`,
+      )
       console.log()
     }
   }
 }
-
-// ── quit + go ─────────────────────────────────────────────────────────────────
-
-const GO_FILE = `${CLARISSA_DIR}/.go`
-
-async function ensureGoWrapper(): Promise<boolean> {
-  const mark = '# clarissa quit+go'
-  const wrapper = [
-    '',
-    '# clarissa quit+go',
-    'function clarissa() {',
-    '  command clarissa "$@"',
-    '  local _go=$(cat ~/.clarissa/.go 2>/dev/null)',
-    '  if [[ -n "$_go" ]]; then',
-    '    rm -f ~/.clarissa/.go',
-    '    eval "$_go"',
-    '  fi',
-    '}',
-    '',
-  ].join('\n')
-
-  let content = ''
-  try { content = await fs.readFile(ZSHRC, 'utf-8') } catch { /* no .zshrc yet */ }
-  if (content.includes(mark)) return false
-  await fs.appendFile(ZSHRC, wrapper)
-  return true
-}
-
-async function triggerGo(cmd: string): Promise<never> {
-  await fs.mkdir(CLARISSA_DIR, { recursive: true })
-  await fs.writeFile(GO_FILE, cmd)
-  process.exit(0)
-}
-
-async function promptSetGoCommand(rl: readline.Interface): Promise<string | null> {
-  console.log()
-  console.log(`  ${dim('what should clarissa run when you quit + go?')}`)
-  console.log(`  ${dim('use && to chain commands  e.g. cd ~/work && git pull')}`)
-  console.log()
-  const raw = (await rl.question(`  → `)).trim()
-  return raw || null
-}
-
-// ── shortcut routing ─────────────────────────────────────────────────────────
-
-async function handleChoice(choice: string): Promise<void> {
-  // Forward to the welcome menu with a pre-selected choice
-  // This avoids duplicating switch logic — just call welcome which handles it
-  // But we need to skip the menu display and go straight to the action
-  switch (choice) {
-    case '1': case 'special-report': case 'special':
-      await specialReport()
-      await welcome()
-      break
-    case '2': case 'advice': {
-      const answered = await askAdviceQuestion()
-      if (answered) {
-        const j = await waitForMenu()
-        if (j) return handleChoice(j)
-      }
-      await welcome()
-      break
-    }
-    case '3': case 'crafts':
-      await crafts()
-      await welcome()
-      break
-    case '4': case 'horoscope': case 'daily':
-      await horoscopeMenu()
-      await welcome()
-      break
-    case '5': case 'planetarium':
-      await planetarium()
-      await welcome()
-      break
-    case '6': case 'setup':
-      await setup()
-      { const j = await waitForMenu(); if (j) return handleChoice(j) }
-      await welcome()
-      break
-    case 'g': case 'go':
-      // Can't handle go from here cleanly, just go to menu
-      await welcome()
-      break
-    default:
-      await welcome()
-  }
-}
-
-// ── welcome ───────────────────────────────────────────────────────────────────
-
-const HR = dim('─'.repeat(48))
 
 export async function welcome(): Promise<void> {
-  const [activePalette, chart, goCommand, location, welcomeArtName, t] = await Promise.all([
-    getActivePalette(),
-    getChart(),
-    getGoCommand(),
-    getLocation(),
-    getWelcomeArt(),
-    loadTheme(),
-  ])
-  ACCENT = t.ACCENT; DIM = t.DIM
+  const theme = await loadTheme()
+  ACCENT = theme.ACCENT
+  DIM = theme.DIM
 
-  const palette = PALETTES[activePalette]
-  const now     = new Date()
+  while (true) {
+    const choice = await selectHomeMenu()
+    if (choice === 'q') return
 
-  // Welcome art (above header if set)
-  if (welcomeArtName) {
-    try {
-      const artIcon = await loadIcon(welcomeArtName)
-      console.log()
-      console.log(renderIcon(artIcon, activePalette).split('\n').map(l => `  ${l}`).join('\n'))
-    } catch { /* icon was deleted, silently skip */ }
-  }
-
-  // Header — palette colors when fill is set, random schemes for 'random', plain for mono
-  const header = figlet.textSync('clarissa', { font: 'Pagga' })
-  let hColors: [number, number] | null = null
-  if (activePalette === 'random') {
-    hColors = HEADER_SCHEMES[Math.floor(Math.random() * HEADER_SCHEMES.length)]
-  } else if (palette.fill !== null) {
-    hColors = [palette.fill, palette.accent]
-  }
-  console.log()
-  console.log(header.split('\n').map(l =>
-    `  ${hColors ? renderTwoTone(l, hColors[0], hColors[1]) : l}`
-  ).join('\n'))
-
-  // Greeting
-  if (chart?.userName) {
-    console.log()
-    console.log(`  ${dim('hey,')} ${bold(chart.userName)}`)
-  }
-
-  // Moon
-  const phase    = getMoonPhase(now)
-  const symbol   = getMoonPhaseSymbol(phase)
-  const name     = getMoonPhaseName(phase)
-  const guidance = getMoonGuidance(phase)
-
-  console.log()
-  console.log(`  ${pal(palette.fill, symbol)}  ${bold(name)}`)
-  console.log(`     ${dim(guidance)}`)
-
-  // Date + weather
-  const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  const weather = location ? await fetchWeather(location) : null
-  console.log()
-  if (weather) {
-    console.log(`  ${dim(today)}  ${DIM}·${RESET}  ${weather}`)
-  } else {
-    console.log(`  ${dim(today)}`)
-  }
-
-  // Lucky numbers
-  const lucky = getDailyLucky(now)
-  console.log()
-  console.log(`  ${dim('✦  lucky:')}  ${lucky.map(n => bold(String(n).padStart(2))).join(dim('  ·  '))}`)
-
-  // Menu
-  console.log()
-  console.log(`  ${HR}`)
-  console.log()
-  console.log(`  ${dim('1')}  ${bold('special report')}`)
-  console.log(`  ${dim('2')}  ${bold('advice')}`)
-  console.log(`  ${dim('3')}  ${bold('crafts')}`)
-  console.log(`  ${dim('4')}  ${bold('horoscope')}`)
-  console.log(`  ${dim('5')}  ${bold('planetarium')}`)
-  console.log(`  ${dim('6')}  ${bold('setup')}`)
-  console.log()
-  console.log(`  ${dim('g')}  ${bold('quit + go')}  ${goCommand ? dim(goCommand) : dim('not set')}`)
-  console.log(`  ${dim('q')}  quit`)
-  console.log()
-
-  // Prompt
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  const choice = (await rl.question(`  ${dim('→')}  `)).trim().toLowerCase()
-
-  console.log()
-
-  switch (choice) {
-    case '1':
-    case 'special-report':
-    case 'special': {
-      rl.close()
-      await specialReport()
-      await welcome()
-      break
-    }
-
-    case '2':
-    case 'advice': {
-      rl.close()
-      const answered = await askAdviceQuestion()
-      if (answered) {
-        const jump = await waitForMenu()
-        if (jump) return handleChoice(jump)
-      }
-      await welcome()
-      break
-    }
-
-    case '3':
-    case 'crafts':
-      rl.close()
-      await crafts()
-      await welcome()
-      break
-
-    case '4':
-    case 'horoscope':
-    case 'daily': {
-      rl.close()
+    if (choice === '1') {
+      await todayView()
+    } else if (choice === '2') {
       await horoscopeMenu()
-      await welcome()
-      break
-    }
-
-    case '5':
-    case 'planetarium': {
-      rl.close()
+    } else if (choice === '3') {
+      await crafts()
+    } else if (choice === '4') {
       await planetarium()
-      await welcome()
-      break
-    }
-
-    case '6':
-    case 'setup': {
-      rl.close()
+    } else if (choice === '5') {
+      await room()
+    } else if (choice === '6') {
       await setup()
-      await welcome()
-      break
     }
-
-    case 'g':
-    case 'go': {
-      if (goCommand) {
-        rl.close()
-        await triggerGo(goCommand)
-      } else {
-        const cmd = await promptSetGoCommand(rl)
-        rl.close()
-        if (cmd) {
-          await setGoCommand(cmd)
-          const patched = await ensureGoWrapper()
-          console.log()
-          console.log(`  quit + go set to: ${dim(cmd)}`)
-          if (patched) {
-            console.log()
-            console.log(`  ${dim('added to .zshrc — restart your terminal to activate')}`)
-          }
-          console.log()
-          await triggerGo(cmd)
-        }
-      }
-      break
-    }
-
-    case 'q':
-    case 'quit':
-      rl.close()
-      process.exit(0)
-      break
-
-    default:
-      rl.close()
-      if (choice) console.log(`  ${dim('press 1 · 2 · 3 · 4 · 5 · 6 · g · q')}\n`)
-      await welcome()
   }
 }

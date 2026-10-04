@@ -4,6 +4,19 @@ export { renderIcon, PALETTES, DEFAULT_PALETTE, PALETTE_KEYS } from '@clarissa/c
 export type { Icon, Palette, PaletteKey } from '@clarissa/core'
 export { loadIcon, listIcons, saveIcon } from './store.js'
 export { FEATURED_FONTS } from './commands/fonts.js'
+export {
+  AVATAR_HOME_MIN_COLUMNS,
+  AVATAR_HOME_MIN_ROWS,
+  AVATAR_HOME_WIDTH,
+  HOME_MENU,
+  renderAvatarHomeFrame,
+} from './home/avatar.js'
+export {
+  ROOM_HOTSPOTS,
+  ROOM_MIN_COLUMNS,
+  ROOM_MIN_ROWS,
+  renderRoomFrame,
+} from './home/room-art.js'
 
 import figlet from 'figlet'
 import { renderIcon, PALETTES } from '@clarissa/core'

@@ -42,7 +42,7 @@ run `clarissa` with no arguments to see the welcome screen, or use a command:
 
 | command | what it does |
 |---|---|
-| `clarissa` | welcome screen |
+| `clarissa` | expressive portrait home and menu |
 | `clarissa setup` | set up your natal chart |
 | `clarissa chart` | show your natal chart |
 | `clarissa me` | big three interpretations |
@@ -58,4 +58,5 @@ run `clarissa` with no arguments to see the welcome screen, or use a command:
 | `clarissa crafts` | pixel art, fonts, and shell command tools |
 | `clarissa jam` | make a new shell command |
 | `clarissa planetarium` | sky view via astroterm (needs `brew install astroterm`) |
+| `clarissa room` | explore Clarissa's interactive pixel room |
 

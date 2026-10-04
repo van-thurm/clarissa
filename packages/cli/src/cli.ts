@@ -18,6 +18,7 @@ import { crafts } from './commands/crafts.js'
 import { jam } from './commands/jam.js'
 import { specialReport } from './commands/special-report.js'
 import { planetarium } from './commands/planetarium.js'
+import { room } from './commands/room.js'
 import { seedGallery } from './store.js'
 
 const program = new Command()
@@ -179,6 +180,16 @@ program
   .description('terminal planetarium powered by astroterm')
   .action(async () => {
     await planetarium().catch(err => {
+      console.error(`\n  error: ${err.message}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('room')
+  .description("explore Clarissa's room")
+  .action(async () => {
+    await room().catch(err => {
       console.error(`\n  error: ${err.message}\n`)
       process.exit(1)
     })
